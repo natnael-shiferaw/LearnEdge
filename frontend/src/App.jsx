@@ -1,12 +1,16 @@
-import { Button } from "./components/ui/button"
-
-
+import { Routes, Route } from "react-router-dom"
+import AuthPage from "@/pages/auth"
+import Header from "@/components/layout/header"
+import Footer from "@/components/layout/footer"
 
 function App() {
-
   return (
     <>
-      <Button className="bg-red-600 text-green-600">LearnEdge</Button>
+     <Header />
+     <Routes>
+      <Route path="/auth" element={<AuthPage />} />
+     </Routes>
+     <Footer />
     </>
   )
 }
