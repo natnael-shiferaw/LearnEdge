@@ -9,18 +9,44 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import React, { useState } from "react";
+import { AuthContext } from "@/context/auth-context";
+import React, { useContext, useState } from "react";
+
 
 function AuthPage() {
   const [isSignIn, setIsSignIn] = useState(true);
 
-  const [username, setUsername] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const {
+    signUpFormData, setSignUpFormData,
+    signInFormData, setSignInFormData
+  } = useContext(AuthContext);
 
   const toggleForm = () => {
     setIsSignIn(!isSignIn);
   };
+  // checks if form is not empty
+  const IsFormValid = () => {
+    if (isSignIn) {
+      return (
+        signInFormData.email.trim() !== "" &&
+        signInFormData.password.trim() !== ""
+      );
+    } else {
+      return (
+        signUpFormData.username.trim() !== "" &&
+        signUpFormData.email.trim() !== "" &&
+        signUpFormData.password.trim() !== ""
+      );
+    }
+  };
+
+  //handle form submission
+  const handleSumbit = (e) => {
+    e.preventDefault();
+  }
+  console.log({"This is signIn Data" : signInFormData,
+              "This is signUp Data" : signUpFormData
+  })
 
   return (
     <div className="flex min-h-screen bg-gray-200">
@@ -49,8 +75,11 @@ function AuthPage() {
                 <div className="flex flex-col space-y-1.5 mb-4">
                   <Label htmlFor="username"
                          className="text-gray-900 font-extrabold">Username</Label>
-                  <Input id="username" placeholder="Enter Username" value={username}
-                         onChange={(e) => setUsername(e.target.value)}
+                  <Input id="username" placeholder="Enter Username" value={signUpFormData.username}
+                         onChange={(e) => setSignUpFormData({
+                          ...signUpFormData,
+                          username: e.target.value,
+                        })}
                          className="py-5 text-lg border-cyan-700 shadow-xl"/>
                 </div>
               </div>
@@ -63,8 +92,17 @@ function AuthPage() {
                   id="email"
                   placeholder="Enter Email"
                   type="email"
-                  value={username}
+                  value={
+                    isSignIn
+                      ? signInFormData.email
+                      : signUpFormData.email
+                  }
                   className="py-5 text-lg border-cyan-700 shadow-xl"
+                  onChange={(e) =>
+                    isSignIn
+                      ? setSignInFormData({ ...signInFormData, email: e.target.value })
+                      : setSignUpFormData({ ...signUpFormData, email: e.target.value })
+                  }
                 />
               </div>
             </div>
@@ -73,14 +111,25 @@ function AuthPage() {
                 <Label htmlFor="password"
                        className="text-gray-900 font-extrabold">Password</Label>
                 <Input
-                  id="password" placeholder="Enter Password" type="password" className="py-5 text-lg border-cyan-700 shadow-xl"
+                  id="password" placeholder="Enter Password" type="password"
+                  value={
+                    isSignIn
+                      ? signInFormData.password
+                      : signUpFormData.password
+                  }
+                  onChange={(e) =>
+                    isSignIn
+                      ? setSignInFormData({ ...signInFormData, password: e.target.value })
+                      : setSignUpFormData({ ...signUpFormData, password: e.target.value })
+                  }
+                  className="py-5 text-lg border-cyan-700 shadow-xl"
                 />
               </div>
             </div>
           </form>
         </CardContent>
         <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" className="w-full bg-gray-800 hover:bg-gray-900 text-white transition-colors duration-300 cursor-pointer">
+            <Button type="submit" disabled={!IsFormValid()}  className="w-full bg-gray-800 hover:bg-gray-900 text-white transition-colors duration-300 cursor-pointer">
             {isSignIn ? "Sign In" : "Sign Up"}
           </Button>
             <Button
