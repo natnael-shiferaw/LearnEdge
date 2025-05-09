@@ -1,21 +1,26 @@
-import path from "path"
-import tailwindcss from "@tailwindcss/vite"
-import react from "@vitejs/plugin-react"
-import { defineConfig, loadEnv } from "vite"
+import path from "path";
+import tailwindcss from "@tailwindcss/vite";
+import react from "@vitejs/plugin-react";
+import { defineConfig, loadEnv } from "vite";
 
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "")
-  const backendUrl = env.VITE_BACKEND_URL
-  if (!backendUrl) throw new Error("VITE_BACKEND_URL not set")
+  // 1) Load .env files into process.env
+  const env = loadEnv(mode, process.cwd(), "");
+
+  // 2) Pull out your VITE_BACKEND_URL
+  const backendUrl = env.VITE_BACKEND_URL;
+  if (!backendUrl) {
+    throw new Error("⚠️  VITE_BACKEND_URL is not defined in your .env");
+  }
 
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
-      alias: { "@": path.resolve(__dirname, "./src") },
+      alias: {
+        "@": path.resolve(__dirname, "./src"),
+      },
     },
     server: {
-      host: true,       // <-- listen on 0.0.0.0 so external URLs connect
-      port: 5173,       // <-- match the forwarded port
       proxy: {
         "/api": {
           target: backendUrl,
@@ -25,5 +30,5 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-  }
-})
+  };
+});
