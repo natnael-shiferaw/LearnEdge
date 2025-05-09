@@ -9,11 +9,12 @@ const app = express()
 const PORT = process.env.PORT || 5000
 const MONGODB_URI= process.env.MONGODB_URI
 
-cors({
+app.use(
+    cors({
     origin: process.env.CLIENT_URL,
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
-});
+}));
 
 //middleware
 app.use(express.json());
@@ -24,7 +25,7 @@ mongoose.connect(MONGODB_URI)
     .catch((e) => console.log(e))
 
 // routes configuration
-app.use('/auth', authRoutes);
+app.use('/api/auth', authRoutes);
 
 app.listen(PORT, () => {
     console.log(`server is running on port ${PORT}`)

@@ -11,4 +11,17 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    proxy: {
+      // forward all /api/* requests to your backend workspace
+      '/api': {
+        target: import.meta.env.VITE_BACKEND_URL,  
+        changeOrigin: true,
+        secure: false,
+        // strip nothing—so /api/auth/register → /api/auth/register
+        rewrite: (path) => path
+      },
+    },
+  },
+
 })

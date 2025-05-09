@@ -18,7 +18,8 @@ function AuthPage() {
 
   const {
     signUpFormData, setSignUpFormData,
-    signInFormData, setSignInFormData
+    signInFormData, setSignInFormData,
+    handleRegisterUser
   } = useContext(AuthContext);
 
   const toggleForm = () => {
@@ -41,11 +42,27 @@ function AuthPage() {
   };
 
   //handle form submission
-  const handleSumbit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-  }
-  console.log({"This is signIn Data" : signInFormData,
-              "This is signUp Data" : signUpFormData
+
+    if (isSignIn) {
+      // Handle sign-in logic
+      // console.log("Sign In", signInFormData);
+    } else {
+      try {
+        await handleRegisterUser(); // from AuthContext
+        console.log("User registered successfully");
+        // Optionally switch to sign-in form
+        // setIsSignIn(true);
+      } catch (error) {
+        console.error("Registration error:", error);
+      }
+    }
+  };
+
+  console.log({
+    "This is signIn Data": signInFormData,
+    "This is signUp Data": signUpFormData
   })
 
   return (
@@ -65,88 +82,90 @@ function AuthPage() {
           <CardHeader className="space-y-2">
             <CardTitle className="text-2xl font-bold text-center transition-colors duration-300">{isSignIn ? "Sign In" : "Sign Up"}</CardTitle>
             <CardDescription className="text-center text-gray-500">
-            {isSignIn ? "Sign in to your account" : "Create a new account"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="">
-          <form onSubmit={handleSumbit}>
-            {!isSignIn && (
+              {isSignIn ? "Sign in to your account" : "Create a new account"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="">
+            <form onSubmit={handleSubmit}>
+              {!isSignIn && (
+                <div className="grid w-full items-center">
+                  <div className="flex flex-col space-y-1.5 mb-4">
+                    <Label htmlFor="username"
+                      className="text-gray-900 font-extrabold">Username</Label>
+                    <Input id="username" placeholder="Enter Username" value={signUpFormData.username}
+                      onChange={(e) => setSignUpFormData({
+                        ...signUpFormData,
+                        username: e.target.value,
+                      })}
+                      className="py-5 text-lg border-cyan-700 shadow-xl" />
+                  </div>
+                </div>
+              )}
               <div className="grid w-full items-center">
                 <div className="flex flex-col space-y-1.5 mb-4">
-                  <Label htmlFor="username"
-                         className="text-gray-900 font-extrabold">Username</Label>
-                  <Input id="username" placeholder="Enter Username" value={signUpFormData.username}
-                         onChange={(e) => setSignUpFormData({
-                          ...signUpFormData,
-                          username: e.target.value,
-                        })}
-                         className="py-5 text-lg border-cyan-700 shadow-xl"/>
+                  <Label htmlFor="email"
+                    className="text-gray-900 font-extrabold">Email</Label>
+                  <Input
+                    id="email"
+                    placeholder="Enter Email"
+                    type="email"
+                    value={
+                      isSignIn
+                        ? signInFormData.email
+                        : signUpFormData.email
+                    }
+                    className="py-5 text-lg border-cyan-700 shadow-xl"
+                    onChange={(e) =>
+                      isSignIn
+                        ? setSignInFormData({ ...signInFormData, email: e.target.value })
+                        : setSignUpFormData({ ...signUpFormData, email: e.target.value })
+                    }
+                  />
                 </div>
               </div>
-            )}
-            <div className="grid w-full items-center">
-              <div className="flex flex-col space-y-1.5 mb-4">
-                <Label htmlFor="email"
-                       className="text-gray-900 font-extrabold">Email</Label>
-                <Input
-                  id="email"
-                  placeholder="Enter Email"
-                  type="email"
-                  value={
-                    isSignIn
-                      ? signInFormData.email
-                      : signUpFormData.email
-                  }
-                  className="py-5 text-lg border-cyan-700 shadow-xl"
-                  onChange={(e) =>
-                    isSignIn
-                      ? setSignInFormData({ ...signInFormData, email: e.target.value })
-                      : setSignUpFormData({ ...signUpFormData, email: e.target.value })
-                  }
-                />
+              <div className="grid w-full items-center">
+                <div className="flex flex-col space-y-1.5">
+                  <Label htmlFor="password"
+                    className="text-gray-900 font-extrabold">Password</Label>
+                  <Input
+                    id="password" placeholder="Enter Password" type="password"
+                    value={
+                      isSignIn
+                        ? signInFormData.password
+                        : signUpFormData.password
+                    }
+                    onChange={(e) =>
+                      isSignIn
+                        ? setSignInFormData({ ...signInFormData, password: e.target.value })
+                        : setSignUpFormData({ ...signUpFormData, password: e.target.value })
+                    }
+                    className="py-5 text-lg border-cyan-700 shadow-xl"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="grid w-full items-center">
-              <div className="flex flex-col space-y-1.5">
-                <Label htmlFor="password"
-                       className="text-gray-900 font-extrabold">Password</Label>
-                <Input
-                  id="password" placeholder="Enter Password" type="password"
-                  value={
-                    isSignIn
-                      ? signInFormData.password
-                      : signUpFormData.password
-                  }
-                  onChange={(e) =>
-                    isSignIn
-                      ? setSignInFormData({ ...signInFormData, password: e.target.value })
-                      : setSignUpFormData({ ...signUpFormData, password: e.target.value })
-                  }
-                  className="py-5 text-lg border-cyan-700 shadow-xl"
-                />
+              <div className="flex flex-col space-y-4 mt-6 w-full">
+                <Button
+                  type="submit"
+                  disabled={!IsFormValid()}
+                  className="w-full bg-gray-800 hover:bg-gray-900 text-white transition-colors duration-300 cursor-pointer"
+                >
+                  {isSignIn ? "Sign In" : "Sign Up"}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full border-gray-800 text-gray-800 hover:bg-gray-50 transition-colors duration-300 cursor-pointer break-words text-sm sm:text-base px-4 py-2"
+                  onClick={toggleForm}
+                >
+                  {isSignIn ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
+                </Button>
               </div>
-            </div>
-          </form>
-        </CardContent>
-        <CardFooter className="flex flex-col space-y-4">
-            <Button type="submit" disabled={!IsFormValid()}  className="w-full bg-gray-800 hover:bg-gray-900 text-white transition-colors duration-300 cursor-pointer">
-            {isSignIn ? "Sign In" : "Sign Up"}
-          </Button>
-            <Button
-              variant="outline"
-              className="w-full border-gray-800 text-gray-800 hover:bg-gray-50 transition-colors duration-300 cursor-pointer"
-              onClick={toggleForm}
-            >
-            {isSignIn ? (
-              "Don't have an account? Sign Up"
-            ) : (
-              "Already have an account? Sign In"
-            )}
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
+    </div>
   );
 }
 
