@@ -43,13 +43,21 @@ export default function AuthProvider({ children }) {
     }
     // check auth user
     const checkAuthUser = async () => {
-        const data = await checkAuthService();
-        if (data.success) {
-            setAuth({ authenticated: true, user: data.data.user })
-            setLoading(false);
-        } else {
-            setAuth({ authenticated: false, user: null })
-            setLoading(false);
+        try {
+            const data = await checkAuthService();
+            if (data.success) {
+                setAuth({ authenticated: true, user: data.data.user })
+                setLoading(false);
+            } else {
+                setAuth({ authenticated: false, user: null })
+                setLoading(false);
+            }
+        } catch (error) {
+            console.log(error)
+            if(!error?.response?.data?.success) {
+                setAuth({ authenticated: false, user: null })
+                setLoading(false);
+            }
         }
     }
 
