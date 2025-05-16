@@ -19,8 +19,8 @@ export default function AuthProvider({ children }) {
     const [signUpFormData, setSignUpFormData] = useState(initialSignUpFormData);
     const [signInFormData, setSignInFormData] = useState(initialSignInFormData);
     const [auth, setAuth] = useState({
-        authenticate: false,
-        user: null
+        authenticated: false,
+        user: null,
     })
 
     // Handle User register
@@ -34,18 +34,18 @@ export default function AuthProvider({ children }) {
         // check if user is successfully logged in
         if (data.success) {
             sessionStorage.setItem('accessToken', JSON.stringify(data.data.accessToken));
-            setAuth({authenticate: true, user: data.data.user})
+            setAuth({authenticated: true, user: data.data.user})
         } else {
-            setAuth({authenticate: false, user: null})
+            setAuth({authenticated: false, user: null})
         } 
     }
     // check auth user
     const checkAuthUser = async() => {
         const data = await checkAuthService();
         if (data.success) {
-            setAuth({authenticate: true, user: data.data.user})
+            setAuth({authenticated: true, user: data.data.user})
         } else {
-            setAuth({authenticate: false, user: null})
+            setAuth({authenticated: false, user: null})
         }
     }
 
@@ -53,14 +53,15 @@ export default function AuthProvider({ children }) {
         checkAuthUser();
     }, [])
 
-    console.log(auth);
+    console.log("This is auth data", auth);
 
     return (
         <AuthContext.Provider value={{
             signUpFormData, setSignUpFormData,
             signInFormData, setSignInFormData,
             handleRegisterUser,
-            handleLoginUser
+            handleLoginUser,
+            auth
         }}>{children}</AuthContext.Provider>
     )
 }
