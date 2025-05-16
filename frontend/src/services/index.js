@@ -6,6 +6,15 @@ export const registerService = async(formData) => {
         ...formData,
         role: 'user'
     });
+    return data
+}
+// a service to login a user
+export const loginService = async(formData) => {
+    const { data } = await axiosInstance.post('/auth/login', formData);
+    return data
+}
 
+export const checkAuthService = async() => {
+    const { data } = await axiosInstance.get('/auth/check-auth');
     return data
 }

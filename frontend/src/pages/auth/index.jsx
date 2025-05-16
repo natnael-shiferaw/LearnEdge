@@ -19,7 +19,8 @@ function AuthPage() {
   const {
     signUpFormData, setSignUpFormData,
     signInFormData, setSignInFormData,
-    handleRegisterUser
+    handleRegisterUser,
+    handleLoginUser
   } = useContext(AuthContext);
 
   const toggleForm = () => {
@@ -46,8 +47,12 @@ function AuthPage() {
     e.preventDefault();
 
     if (isSignIn) {
-      // Handle sign-in logic
-      // console.log("Sign In", signInFormData);
+      try {
+        await handleLoginUser();
+        console.log("User Logged in successfully!")
+      } catch (error) {
+        console.error("Login error: ", error)
+      }
     } else {
       try {
         await handleRegisterUser(); // from AuthContext
