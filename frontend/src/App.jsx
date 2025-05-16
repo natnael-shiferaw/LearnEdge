@@ -10,33 +10,33 @@ import StudentViewLayout from "./components/student-view/layout"
 import StudentHomepage from "./pages/student/home"
 
 function App() {
-  const { auth }= useContext(AuthContext)
+  const { auth } = useContext(AuthContext)
 
   return (
     <>
-     <Header />
-     <Routes>
-      <Route path="/auth" element={<ProtectedRoute 
-                                      element={<AuthPage />} 
-                                      authenticated={auth?.authenticated}
-                                      user={auth?.user} /> } >
+      <Header />
+      <Routes>
+        <Route path="/auth" element={<ProtectedRoute
+          element={<AuthPage />}
+          authenticated={auth?.authenticated}
+          user={auth?.user} />} >
         </Route>
 
-      <Route path="/instructor" element={<ProtectedRoute 
-                                      element={<InstructorDashboardPage />} 
-                                      authenticated={auth?.authenticated}
-                                      user={auth?.user} /> } >
+        <Route path="/instructor" element={<ProtectedRoute
+          element={<InstructorDashboardPage />}
+          authenticated={auth?.authenticated}
+          user={auth?.user} />} >
         </Route>
 
         <Route path="/" element={<ProtectedRoute
-                                      element={<StudentViewLayout />} 
-                                      authenticated={auth?.authenticated}
-                                      user={auth?.user} />}>
+          element={<StudentViewLayout />}
+          authenticated={auth?.authenticated}
+          user={auth?.user} />}>
           <Route path="" element={<StudentHomepage />}></Route>
           <Route path="home" element={<StudentHomepage />}></Route>
         </Route>
-     </Routes>
-     <Footer />
+      </Routes>
+      <Footer />
     </>
   )
 }

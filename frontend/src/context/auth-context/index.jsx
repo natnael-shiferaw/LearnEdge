@@ -1,6 +1,7 @@
+import { Skeleton } from "@/components/ui/skeleton";
 import { checkAuthService, loginService, registerService } from "@/services";
 import { createContext, useEffect } from "react";
-import {useState} from "react"
+import { useState } from "react"
 
 export const AuthContext = createContext(null);
 
@@ -22,11 +23,12 @@ export default function AuthProvider({ children }) {
         authenticated: false,
         user: null,
     })
+    const [loading, setLoading] = useState(true);
 
     // Handle User register
     const handleRegisterUser = async () => {
         const data = await registerService(signUpFormData);
-        console.log(data); 
+        console.log(data);
     }
     // Handle User login
     const handleLoginUser = async () => {
@@ -34,18 +36,20 @@ export default function AuthProvider({ children }) {
         // check if user is successfully logged in
         if (data.success) {
             sessionStorage.setItem('accessToken', JSON.stringify(data.data.accessToken));
-            setAuth({authenticated: true, user: data.data.user})
+            setAuth({ authenticated: true, user: data.data.user })
         } else {
-            setAuth({authenticated: false, user: null})
-        } 
+            setAuth({ authenticated: false, user: null })
+        }
     }
     // check auth user
-    const checkAuthUser = async() => {
+    const checkAuthUser = async () => {
         const data = await checkAuthService();
         if (data.success) {
-            setAuth({authenticated: true, user: data.data.user})
+            setAuth({ authenticated: true, user: data.data.user })
+            setLoading(false);
         } else {
-            setAuth({authenticated: false, user: null})
+            setAuth({ authenticated: false, user: null })
+            setLoading(false);
         }
     }
 
@@ -62,6 +66,9 @@ export default function AuthProvider({ children }) {
             handleRegisterUser,
             handleLoginUser,
             auth
-        }}>{children}</AuthContext.Provider>
+        }}>{
+                loading ? <Skeleton /> : children
+            }
+        </AuthContext.Provider>
     )
 }
