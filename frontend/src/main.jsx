@@ -6,7 +6,7 @@ import AuthProvider from './context/auth-context'
 import { ThemeProvider } from '@/components/theme-provider'
 
 createRoot(document.getElementById('root')).render(
-  <ThemeProvider attribute="class" defaultTheme="system">
+  <ThemeProvider defaultTheme="system">
     <BrowserRouter>
       <AuthProvider>
         <App />

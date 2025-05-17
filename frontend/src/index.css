@@ -1,7 +1,4 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-
-
+@tailwind base;
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -82,17 +79,18 @@
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
-}
 
-@layer base {
   * {
-    @apply border-border;
+    border-color: hsl(var(--border));
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 }
+@tailwind components;
+@tailwind utilities;
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
@@ -101,81 +99,137 @@
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-muted;
+  background-color: hsl(var(--muted));
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply rounded-full bg-muted-foreground/30;
+  border-radius: 9999px;
+  background-color: hsl(var(--muted-foreground) / 0.3);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground/50;
+  background-color: hsl(var(--muted-foreground) / 0.5);
 }
 
 /* Custom styles for the video player */
 .video-player {
-  @apply aspect-video w-full overflow-hidden rounded-md;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  overflow: hidden;
+  border-radius: calc(var(--radius) - 2px);
 }
 
 /* Custom styles for the curriculum builder */
 .curriculum-section {
-  @apply rounded-md border bg-card p-4 shadow-sm transition-all hover:shadow-md;
+  border-radius: calc(var(--radius) - 2px);
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+  padding: 1rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: all 0.2s;
+}
+
+.curriculum-section:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 .lecture-item {
-  @apply flex items-center justify-between rounded-md border-b p-3 last:border-0 hover:bg-accent/50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-radius: calc(var(--radius) - 2px);
+  border-bottom: 1px solid hsl(var(--border));
+  padding: 0.75rem;
+}
+
+.lecture-item:last-child {
+  border-bottom: none;
+}
+
+.lecture-item:hover {
+  background-color: hsl(var(--accent) / 0.5);
 }
 
 /* Custom styles for the course cards */
 .course-card {
-  @apply overflow-hidden rounded-lg border bg-card shadow-sm transition-all hover:shadow-md;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  transition: all 0.2s;
+}
+
+.course-card:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 
 .course-card-image {
-  @apply aspect-video w-full overflow-hidden;
+  aspect-ratio: 16 / 9;
+  width: 100%;
+  overflow: hidden;
 }
 
 .course-card-image img {
-  @apply h-full w-full object-cover transition-transform hover:scale-105;
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  transition: transform 0.2s;
+}
+
+.course-card-image img:hover {
+  transform: scale(1.05);
 }
 
 /* Custom styles for the dashboard stats */
 .stat-card {
-  @apply rounded-lg border bg-card p-4 shadow-sm;
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  background-color: hsl(var(--card));
+  padding: 1rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
 
 .stat-value {
-  @apply text-2xl font-bold;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 700;
 }
 
 .stat-label {
-  @apply text-sm text-muted-foreground;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  color: hsl(var(--muted-foreground));
 }
 
 /* Custom styles for the student progress */
 .progress-indicator {
-  @apply h-2 rounded-full bg-primary/20;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: hsl(var(--primary) / 0.2);
 }
 
 .progress-value {
-  @apply h-full rounded-full bg-primary;
+  height: 100%;
+  border-radius: 9999px;
+  background-color: hsl(var(--primary));
 }
 
 /* Responsive adjustments */
 @media (max-width: 640px) {
   .responsive-grid {
-    @apply grid-cols-1;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 641px) and (max-width: 1024px) {
   .responsive-grid {
-    @apply grid-cols-2;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (min-width: 1025px) {
   .responsive-grid {
-    @apply grid-cols-3;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
