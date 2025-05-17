@@ -188,7 +188,7 @@ export default function InstructorDashboardPage() {
 
                     <div className="mt-6 text-center">
                       <Button variant="outline" asChild>
-                        <Link href="/instructor/students">View All Students</Link>
+                        <Link to="/instructor/students">View All Students</Link>
                       </Button>
                     </div>
                   </CardContent>

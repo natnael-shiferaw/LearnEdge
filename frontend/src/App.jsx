@@ -11,6 +11,7 @@ import StudentHomepage from "./pages/student/home"
 import NotFoundPage from "./pages/not-found"
 import InstructorCoursesPage from "./pages/instructor/courses"
 import InstructorViewLayout from "./components/instructor/layout"
+import InstructorStudentsPage from "./pages/instructor/students"
 
 function App() {
   const { auth } = useContext(AuthContext)
@@ -25,12 +26,14 @@ function App() {
           user={auth?.user} />} >
         </Route>
 
+        {/** Instructor Routes */}
         <Route path="/instructor" element={<ProtectedRoute
           element={<InstructorViewLayout />}
           authenticated={auth?.authenticated}
           user={auth?.user} />} >
             <Route path="" element={<InstructorDashboardPage />}></Route>
             <Route path="courses" element={<InstructorCoursesPage />}></Route>
+            <Route path="students" element={<InstructorStudentsPage />}></Route>
         </Route>
 
         {/** Student Routes */}
