@@ -18,6 +18,7 @@ import CoursesPage from "./pages/courses"
 import CourseDetailPage from "./pages/courses/[id]"
 import CategoriesPage from "./pages/categories"
 import MyCoursesPage from "./pages/student/my-courses"
+import CourseProgressPage from "./pages/student/my-courses/course-progress/[id]"
 
 function App() {
   const { auth } = useContext(AuthContext)
@@ -65,6 +66,16 @@ function App() {
           <Route path="my-courses" element={<MyCoursesPage />}></Route>
         </Route>
 
+        <Route
+          path="/student/my-courses/course-progress/:id"
+          element={
+            <ProtectedRoute
+              element={<CourseProgressPage />}
+              authenticated={auth.authenticated}
+              user={auth.user}
+            />
+          }
+        />
         <Route
           path="/instructor/courses/:id/edit"
           element={
