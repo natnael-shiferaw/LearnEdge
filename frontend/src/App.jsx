@@ -14,6 +14,8 @@ import InstructorViewLayout from "./components/instructor/layout"
 import InstructorStudentsPage from "./pages/instructor/students"
 import CourseEditPage from "./pages/instructor/courses/[id]/edit"
 import HomePage from "./pages/home"
+import CoursesPage from "./pages/courses"
+import CourseDetailPage from "./pages/courses/[id]"
 
 function App() {
   const { auth } = useContext(AuthContext)
@@ -25,6 +27,8 @@ function App() {
         {/** Homepage */}
         <Route path="/"  element={<HomePage />} />
         <Route path="/home"  element={<HomePage />} />
+        <Route path="/courses"  element={<CoursesPage />} />
+        <Route path="/courses/:id" element={<CourseDetailPage />} />
 
         {/** Authentication page */}
         <Route path="/auth" element={<ProtectedRoute
