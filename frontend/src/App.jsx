@@ -7,7 +7,7 @@ import { useContext } from "react"
 import { AuthContext } from "./context/auth-context"
 import InstructorDashboardPage from "./pages/instructor"
 import StudentViewLayout from "./components/student-view/layout"
-import StudentHomepage from "./pages/student/home"
+import StudentDashboardPage from "./pages/student/dashboard"
 import NotFoundPage from "./pages/not-found"
 import InstructorCoursesPage from "./pages/instructor/courses"
 import InstructorViewLayout from "./components/instructor/layout"
@@ -43,12 +43,12 @@ function App() {
         </Route>
 
         {/** Student Routes */}
-        <Route path="/" element={<ProtectedRoute
+        <Route path="/student" element={<ProtectedRoute
           element={<StudentViewLayout />}
           authenticated={auth?.authenticated}
           user={auth?.user} />}>
-          <Route path="" element={<StudentHomepage />}></Route>
-          <Route path="home" element={<StudentHomepage />}></Route>
+          <Route path="" element={<StudentDashboardPage />}></Route>
+          <Route path="dashboard" element={<StudentDashboardPage />}></Route>
         </Route>
 
         <Route
