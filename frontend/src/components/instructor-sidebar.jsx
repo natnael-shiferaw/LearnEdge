@@ -1,14 +1,10 @@
-import { useState } from "react"
+import { useContext, useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import {
-  BarChart,
   BookOpen,
-  FileText,
   GraduationCap,
-  HelpCircle,
   LayoutDashboard,
   LogOut,
-  MessageSquare,
   PanelLeft,
   Settings,
   Users,
@@ -17,11 +13,13 @@ import {
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { AuthContext } from "@/context/auth-context"
 
 export function InstructorSidebar() {
   const location = useLocation()
   const pathname = location.pathname
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const { resetCredentials } = useContext(AuthContext)
 
   const routes = [
     {
@@ -45,36 +43,25 @@ export function InstructorSidebar() {
       active: pathname === "/instructor/students",
     },
     {
-      label: "Analytics",
-      icon: BarChart,
-      href: "/instructor/analytics",
-      active: pathname === "/instructor/analytics",
-    },
-    {
-      label: "Reviews",
-      icon: MessageSquare,
-      href: "/instructor/reviews",
-      active: pathname === "/instructor/reviews",
-    },
-    {
-      label: "Announcements",
-      icon: FileText,
-      href: "/instructor/announcements",
-      active: pathname === "/instructor/announcements",
-    },
-    {
       label: "Settings",
       icon: Settings,
       href: "/instructor/settings",
       active: pathname === "/instructor/settings",
     },
     {
-      label: "Help & Support",
-      icon: HelpCircle,
-      href: "/instructor/support",
-      active: pathname === "/instructor/support",
-    },
+      label: "LogOut",
+      icon: LogOut,
+      onClick: () => {
+        handleLogout();
+      }
+    }
   ]
+
+  // Handle Logout
+  const handleLogout = () => {
+    resetCredentials();
+    sessionStorage.clear();
+  }
 
   return (
     <div
@@ -91,8 +78,10 @@ export function InstructorSidebar() {
             isCollapsed && "justify-center",
           )}
         >
-          <GraduationCap className="h-6 w-6" />
-          {!isCollapsed && <span>Instructor</span>}
+          {!isCollapsed && <div className="flex gap-1">
+            <GraduationCap className="h-6 w-6" />
+            <span>Instructor</span>
+          </div>}
         </Link>
         <Button
           variant="ghost"
@@ -106,36 +95,40 @@ export function InstructorSidebar() {
       </div>
       <ScrollArea className="flex-1 px-3 py-2">
         <div className="flex flex-col gap-1">
-          {routes.map((route) => (
-            <Link
-              key={route.href}
-              to={route.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
-                route.active
-                  ? "bg-accent text-accent-foreground"
-                  : "text-muted-foreground",
-                isCollapsed && "justify-center px-2",
-              )}
-            >
-              <route.icon className={cn("h-5 w-5", isCollapsed && "h-5 w-5")} />
-              {!isCollapsed && <span>{route.label}</span>}
-            </Link>
-          ))}
+          {routes.map((route) => {
+            const commonClasses = cn(
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors hover:bg-accent hover:text-accent-foreground",
+              route.active ? "bg-accent text-accent-foreground" : "text-muted-foreground",
+              isCollapsed && "justify-center px-2",
+            );
+            // render a button for logout
+            if (route.onClick) {
+              return (
+                <button
+                  key="logout"
+                  onClick={route.onClick}
+                  className={commonClasses}
+                >
+                  <route.icon className="h-5 w-5" />
+                  {!isCollapsed && <span>{route.label}</span>}
+                </button>
+              );
+            }
+
+            // otherwise it’s a normal link
+            return (
+              <Link
+                key={route.href}
+                to={route.href}
+                className={commonClasses}
+              >
+                <route.icon className="h-5 w-5" />
+                {!isCollapsed && <span>{route.label}</span>}
+              </Link>
+            );
+          })}
         </div>
       </ScrollArea>
-      <div className="mt-auto border-t p-3">
-        <Link
-          to="/"
-          className={cn(
-            "flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
-            isCollapsed && "justify-center px-2",
-          )}
-        >
-          <LogOut className="h-5 w-5" />
-          {!isCollapsed && <span>Back to Site</span>}
-        </Link>
-      </div>
     </div>
   )
 }
