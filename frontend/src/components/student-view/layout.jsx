@@ -4,7 +4,6 @@ import { Outlet } from 'react-router-dom'
 function StudentViewLayout() {
     return (
         <div>
-            StudentViewLayout
             <Outlet />
         </div>
     )
