@@ -17,6 +17,7 @@ import HomePage from "./pages/home"
 import CoursesPage from "./pages/courses"
 import CourseDetailPage from "./pages/courses/[id]"
 import CategoriesPage from "./pages/categories"
+import MyCoursesPage from "./pages/student/my-courses"
 
 function App() {
   const { auth } = useContext(AuthContext)
@@ -61,6 +62,7 @@ function App() {
           user={auth?.user} />}>
           <Route path="" element={<StudentDashboardPage />}></Route>
           <Route path="dashboard" element={<StudentDashboardPage />}></Route>
+          <Route path="my-courses" element={<MyCoursesPage />}></Route>
         </Route>
 
         <Route
