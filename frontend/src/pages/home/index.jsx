@@ -85,7 +85,7 @@ export default function HomePage() {
                 <Link to="/courses">Explore Courses</Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link to="/auth/register">Join for Free</Link>
+                <Link to="/auth">Join for Free</Link>
               </Button>
             </div>
           </div>
@@ -293,7 +293,7 @@ export default function HomePage() {
               Join thousands of students already learning on LearnEdge. Start your journey today.
             </p>
             <Button size="lg" variant="secondary" asChild>
-              <Link to="/auth/register">Sign Up for Free</Link>
+              <Link to="/auth">Sign Up for Free</Link>
             </Button>
           </div>
         </div>
