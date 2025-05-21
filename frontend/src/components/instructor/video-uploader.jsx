@@ -15,23 +15,45 @@ import {
 export function VideoUploader({ onUpload, currentVideo }) {
   const [videoFile, setVideoFile] = useState(null)
   const [videoPreviewUrl, setVideoPreviewUrl] = useState(currentVideo)
+  const [videoDuration, setVideoDuration] = useState(null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const fileInputRef = useRef(null)
+
+  // helper to format seconds as "MM:SS"
+  function formatDuration(seconds) {
+    const m = Math.floor(seconds / 60)
+      .toString()
+      .padStart(2, "0")
+    const s = Math.round(seconds % 60)
+      .toString()
+      .padStart(2, "0")
+    return `${m}:${s}`
+  }
 
   const handleFileChange = (e) => {
     const file = e.target.files[0]
     if (file && file.type.startsWith("video/")) {
       setVideoFile(file)
+
+      // create object URL & preview
       const url = URL.createObjectURL(file)
       setVideoPreviewUrl(url)
+
+      // load metadata to compute duration
+      const tmp = document.createElement("video")
+      tmp.preload = "metadata"
+      tmp.src = url
+      tmp.onloadedmetadata = () => {
+        URL.revokeObjectURL(url)
+        setVideoDuration(formatDuration(tmp.duration))
+      }
     }
   }
 
   const handleUpload = () => {
     if (videoFile) {
-      // In a real app, you would upload the file to your server or cloud storage
-      // For this example, we'll just simulate a successful upload
-      const duration = "10:30" // This would normally come from the server or be calculated
+      // use the computed duration (fallback to "0:00")
+      const duration = videoDuration ?? "0:00"
       onUpload(videoPreviewUrl, duration)
       setIsDialogOpen(false)
     }
@@ -39,6 +61,7 @@ export function VideoUploader({ onUpload, currentVideo }) {
 
   const handleRemoveVideo = () => {
     setVideoFile(null)
+    setVideoDuration(null)
     if (videoPreviewUrl) {
       URL.revokeObjectURL(videoPreviewUrl)
     }
@@ -64,19 +87,37 @@ export function VideoUploader({ onUpload, currentVideo }) {
           )}
         </Button>
       </DialogTrigger>
+
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>Upload Lecture Video</DialogTitle>
-          <DialogDescription>Upload a video file for this lecture. Supported formats: MP4, WebM.</DialogDescription>
+          <DialogDescription>
+            Upload a video file for this lecture. Supported formats: MP4, WebM.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4">
-          <input type="file" ref={fileInputRef} accept="video/*" onChange={handleFileChange} className="hidden" />
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="video/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
 
           {videoPreviewUrl ? (
             <div className="relative">
-              <video src={videoPreviewUrl} controls className="aspect-video w-full rounded-md border" />
-              <Button variant="destructive" size="icon" className="absolute right-2 top-2" onClick={handleRemoveVideo}>
+              <video
+                src={videoPreviewUrl}
+                controls
+                className="aspect-video w-full rounded-md border"
+              />
+              <Button
+                variant="destructive"
+                size="icon"
+                className="absolute right-2 top-2"
+                onClick={handleRemoveVideo}
+              >
                 <X className="h-4 w-4" />
               </Button>
             </div>
@@ -87,7 +128,9 @@ export function VideoUploader({ onUpload, currentVideo }) {
             >
               <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
               <p className="text-sm font-medium">Click to upload video</p>
-              <p className="text-xs text-muted-foreground">MP4, WebM up to 2GB</p>
+              <p className="text-xs text-muted-foreground">
+                MP4, WebM up to 2GB
+              </p>
             </div>
           )}
         </div>

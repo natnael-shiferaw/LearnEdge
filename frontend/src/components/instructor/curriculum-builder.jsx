@@ -7,6 +7,12 @@ import { Switch } from "@/components/ui/switch"
 import { VideoUploader } from "@/components/instructor/video-uploader"
 
 export function CurriculumBuilder() {
+  function formatDuration(seconds) {
+    const m = Math.floor(seconds / 60).toString().padStart(2, "0")
+    const s = Math.round(seconds % 60).toString().padStart(2, "0")
+    return `${m}:${s}`
+  }  
+
   const [sections, setSections] = useState([
     {
       id: 1,
@@ -120,35 +126,49 @@ export function CurriculumBuilder() {
 
   const handleBulkUploadClick = () => fileInputRef.current?.click()
 
-  const handleBulkFiles = (e) => {
-    const files = Array.from(e.target.files)
-    if (!files.length) return
-
-    setSections(sections.map(section => {
-      // append into last section:
-      if (section.id !== sections[sections.length - 1].id) return section
-
-      const startIndex = section.lectures.length + 1
-      const newLectures = files.map((file, i) => {
-        const url = URL.createObjectURL(file)
-        return {
-          id: Date.now() + i,
-          title: `Lecture ${startIndex + i}`,
-          videoUrl: url,
-          duration: "0:00",
-          isPreview: false,
-        }
-      })
-
-      return {
-        ...section,
-        lectures: [...section.lectures, ...newLectures],
-      }
-    }))
-
-    e.target.value = ""
-  }
-
+   const handleBulkFiles = async (e) => {
+       const files = Array.from(e.target.files)
+       if (!files.length) return
+    
+       // load each into a temporary <video> to grab .duration
+       const fileInfos = await Promise.all(files.map(file => {
+         return new Promise(resolve => {
+           const url = URL.createObjectURL(file)
+           const video = document.createElement("video")
+           video.preload = "metadata"
+           video.src = url
+           video.onloadedmetadata = () => {
+             URL.revokeObjectURL(url)
+             resolve({
+               file,
+               url,
+               duration: formatDuration(video.duration)
+             })
+           }
+         })
+       }))
+    
+       setSections(sections.map((section, idx) => {
+         if (idx !== sections.length - 1) return section
+    
+         const startIndex = section.lectures.length + 1
+         const newLectures = fileInfos.map((info, i) => ({
+           id: Date.now() + i,
+           title: `Lecture ${startIndex + i}`,
+           videoUrl: info.url,
+           duration: info.duration,
+           isPreview: false,
+         }))
+    
+         return {
+           ...section,
+           lectures: [...section.lectures, ...newLectures],
+         }
+       }))
+    
+       e.target.value = ""
+     }
+  
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
