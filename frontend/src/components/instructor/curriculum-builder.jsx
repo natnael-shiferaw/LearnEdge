@@ -1,3 +1,4 @@
+import { useRef } from "react"
 import { useState } from "react"
 import { File, Plus, Trash, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -16,6 +17,7 @@ export function CurriculumBuilder() {
           title: "Welcome to the Course",
           videoUrl: null,
           duration: "0:00",
+          isPreview: false,
         },
       ],
     },
@@ -45,14 +47,15 @@ export function CurriculumBuilder() {
       title: "New Lecture",
       videoUrl: null,
       duration: "0:00",
+      isPreview: false,
     }
     setSections(
       sections.map((section) =>
         section.id === sectionId
           ? {
-              ...section,
-              lectures: [...section.lectures, newLecture],
-            }
+            ...section,
+            lectures: [...section.lectures, newLecture],
+          }
           : section,
       ),
     )
@@ -63,9 +66,9 @@ export function CurriculumBuilder() {
       sections.map((section) =>
         section.id === sectionId
           ? {
-              ...section,
-              lectures: section.lectures.map((lecture) => (lecture.id === lectureId ? { ...lecture, title } : lecture)),
-            }
+            ...section,
+            lectures: section.lectures.map((lecture) => (lecture.id === lectureId ? { ...lecture, title } : lecture)),
+          }
           : section,
       ),
     )
@@ -76,9 +79,9 @@ export function CurriculumBuilder() {
       sections.map((section) =>
         section.id === sectionId
           ? {
-              ...section,
-              lectures: section.lectures.filter((lecture) => lecture.id !== lectureId),
-            }
+            ...section,
+            lectures: section.lectures.filter((lecture) => lecture.id !== lectureId),
+          }
           : section,
       ),
     )
@@ -89,28 +92,77 @@ export function CurriculumBuilder() {
       sections.map((section) =>
         section.id === sectionId
           ? {
-              ...section,
-              lectures: section.lectures.map((lecture) =>
-                lecture.id === lectureId ? { ...lecture, videoUrl, duration } : lecture,
-              ),
-            }
+            ...section,
+            lectures: section.lectures.map((lecture) =>
+              lecture.id === lectureId ? { ...lecture, videoUrl, duration } : lecture,
+            ),
+          }
           : section,
       ),
     )
   }
+  // handle toggle preview
+  function handleTogglePreview(sectionId, lectureId) {
+    setSections(sections.map(section =>
+      section.id === sectionId
+        ? {
+          ...section,
+          lectures: section.lectures.map(lec =>
+            lec.id === lectureId ? { ...lec, isPreview: !lec.isPreview } : lec
+          ),
+        }
+        : section
+    ))
+  }
 
-  const handleBulkUpload = () => {
-    // This would typically open a file picker and process multiple files
-    alert("Bulk upload functionality would be implemented here")
+  const fileInputRef = useRef(null)
+
+  const handleBulkUploadClick = () => fileInputRef.current?.click()
+
+  const handleBulkFiles = (e) => {
+    const files = Array.from(e.target.files)
+    if (!files.length) return
+
+    setSections(sections.map(section => {
+      // append into last section:
+      if (section.id !== sections[sections.length - 1].id) return section
+
+      const startIndex = section.lectures.length + 1
+      const newLectures = files.map((file, i) => {
+        const url = URL.createObjectURL(file)
+        return {
+          id: Date.now() + i,
+          title: `Lecture ${startIndex + i}`,
+          videoUrl: url,
+          duration: "0:00",
+          isPreview: false,
+        }
+      })
+
+      return {
+        ...section,
+        lectures: [...section.lectures, ...newLectures],
+      }
+    }))
+
+    e.target.value = ""
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">Course Curriculum</h3>
-        <Button variant="outline" onClick={handleBulkUpload}>
+        <Button variant="outline" onClick={handleBulkUploadClick}>
           <Upload className="mr-2 h-4 w-4" /> Bulk Upload
         </Button>
+        <input
+          type="file"
+          accept="video/*"
+          multiple
+          ref={fileInputRef}
+          className="hidden"
+          onChange={handleBulkFiles}
+        />
       </div>
 
       <div className="space-y-4">
@@ -146,6 +198,16 @@ export function CurriculumBuilder() {
                       onChange={(e) => handleLectureTitleChange(section.id, lecture.id, e.target.value)}
                       className="max-w-[300px]"
                     />
+                    {/* Free preview toggle */}
+                    <label className="inline-flex items-center ml-4">
+                      <input
+                        type="checkbox"
+                        checked={lecture.isPreview}
+                        onChange={() => handleTogglePreview(section.id, lecture.id)}
+                        className="mr-1 h-5 w-5"
+                      />
+                      <span className="text-sm">Free preview</span>
+                    </label>
                     {lecture.duration !== "0:00" && (
                       <span className="text-xs text-muted-foreground">{lecture.duration}</span>
                     )}
