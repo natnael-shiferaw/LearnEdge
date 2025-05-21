@@ -20,8 +20,20 @@ import { CurriculumBuilder } from "@/components/instructor/curriculum-builder"
 import { CourseImageUpload } from "@/components/instructor/course-image-upload"
 
 export function AddCourseDialog({ open, onOpenChange }) {
-    const navigate = useNavigate()
+  const navigate = useNavigate()
   const [step, setStep] = useState(1)
+
+  const [sections, setSections] = useState([   // sections for the curriculum
+    {
+      id: 1,
+      title: "Introduction",
+      expanded: true,
+      lectures: [
+        { id: 1, title: "Welcome", videoUrl: null, duration: "0:00", isPreview: false },
+      ],
+    },
+  ])
+
   const [courseData, setCourseData] = useState({
     title: "",
     category: "",
@@ -33,7 +45,7 @@ export function AddCourseDialog({ open, onOpenChange }) {
     welcomeMessage: "",
     learningObjectives: ["", "", ""],
     image: null,
-    curriculum: [],
+    curriculum: sections,
   })
 
   const totalSteps = 3
@@ -65,8 +77,8 @@ export function AddCourseDialog({ open, onOpenChange }) {
     // Here you would typically send the data to your backend
     console.log("Course data:", courseData)
     onOpenChange(false)
-    // Redirect to the course edit page
-    navigate("/instructor/courses/new")
+    // Redirect to the courses page
+    navigate("/instructor/courses")
   }
 
   const handleNext = () => {
@@ -252,7 +264,13 @@ export function AddCourseDialog({ open, onOpenChange }) {
           </div>
         )}
 
-        {step === 2 && <CurriculumBuilder />}
+        {step === 2 && <CurriculumBuilder
+          sections={sections}
+          onChange={newSections => {
+            setSections(newSections)
+            setCourseData(curr => ({ ...curr, curriculum: newSections }))
+          }}
+        />}
 
         {step === 3 && (
           <div className="grid gap-6">

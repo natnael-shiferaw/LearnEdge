@@ -1,34 +1,21 @@
 import { useRef } from "react"
-import { useState } from "react"
 import { File, Plus, Trash, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { VideoUploader } from "@/components/instructor/video-uploader"
 
-export function CurriculumBuilder() {
+export function CurriculumBuilder({ sections, onChange }) {
   function formatDuration(seconds) {
     const m = Math.floor(seconds / 60).toString().padStart(2, "0")
     const s = Math.round(seconds % 60).toString().padStart(2, "0")
     return `${m}:${s}`
-  }  
-
-  const [sections, setSections] = useState([
-    {
-      id: 1,
-      title: "Introduction",
-      expanded: true,
-      lectures: [
-        {
-          id: 1,
-          title: "Welcome to the Course",
-          videoUrl: null,
-          duration: "0:00",
-          isPreview: false,
-        },
-      ],
-    },
-  ])
+  }
+  // helper to update:
+  function update(fn) {
+    const next = fn(sections)
+    onChange(next)
+  }
 
   const handleAddSection = () => {
     const newSection = {
@@ -37,15 +24,17 @@ export function CurriculumBuilder() {
       expanded: true,
       lectures: [],
     }
-    setSections([...sections, newSection])
+    update(secs => [...secs, newSection])
   }
 
   const handleSectionTitleChange = (sectionId, title) => {
-    setSections(sections.map((section) => (section.id === sectionId ? { ...section, title } : section)))
+    update(secs =>
+      secs.map(s => s.id === sectionId ? { ...s, title } : s)
+    )
   }
 
   const handleDeleteSection = (sectionId) => {
-    setSections(sections.filter((section) => section.id !== sectionId))
+    update(secs => secs.filter(s => s.id !== sectionId))
   }
 
   const handleAddLecture = (sectionId) => {
@@ -56,70 +45,75 @@ export function CurriculumBuilder() {
       duration: "0:00",
       isPreview: false,
     }
-    setSections(
-      sections.map((section) =>
-        section.id === sectionId
-          ? {
-            ...section,
-            lectures: [...section.lectures, newLecture],
-          }
-          : section,
-      ),
+    update(secs =>
+      secs.map(s =>
+        s.id === sectionId
+          ? { ...s, lectures: [...s.lectures, newLecture] }
+          : s
+      )
     )
   }
 
   const handleLectureTitleChange = (sectionId, lectureId, title) => {
-    setSections(
-      sections.map((section) =>
-        section.id === sectionId
+    update(secs =>
+      secs.map(s =>
+        s.id === sectionId
           ? {
-            ...section,
-            lectures: section.lectures.map((lecture) => (lecture.id === lectureId ? { ...lecture, title } : lecture)),
-          }
-          : section,
-      ),
+              ...s,
+              lectures: s.lectures.map(l =>
+                l.id === lectureId ? { ...l, title } : l
+              ),
+            }
+          : s
+      )
     )
   }
 
   const handleDeleteLecture = (sectionId, lectureId) => {
-    setSections(
-      sections.map((section) =>
-        section.id === sectionId
+    update(secs =>
+      secs.map(s =>
+        s.id === sectionId
           ? {
-            ...section,
-            lectures: section.lectures.filter((lecture) => lecture.id !== lectureId),
-          }
-          : section,
-      ),
+              ...s,
+              lectures: s.lectures.filter(l => l.id !== lectureId),
+            }
+          : s
+      )
     )
   }
 
   const handleVideoUpload = (sectionId, lectureId, videoUrl, duration) => {
-    setSections(
-      sections.map((section) =>
-        section.id === sectionId
+    update(secs =>
+      secs.map(s =>
+        s.id === sectionId
           ? {
-            ...section,
-            lectures: section.lectures.map((lecture) =>
-              lecture.id === lectureId ? { ...lecture, videoUrl, duration } : lecture,
-            ),
-          }
-          : section,
-      ),
+              ...s,
+              lectures: s.lectures.map(l =>
+                l.id === lectureId
+                  ? { ...l, videoUrl, duration }
+                  : l
+              ),
+            }
+          : s
+      )
     )
   }
-  // handle toggle preview
+
   function handleTogglePreview(sectionId, lectureId) {
-    setSections(sections.map(section =>
-      section.id === sectionId
-        ? {
-          ...section,
-          lectures: section.lectures.map(lec =>
-            lec.id === lectureId ? { ...lec, isPreview: !lec.isPreview } : lec
-          ),
-        }
-        : section
-    ))
+    update(secs =>
+      secs.map(s =>
+        s.id === sectionId
+          ? {
+              ...s,
+              lectures: s.lectures.map(l =>
+                l.id === lectureId
+                  ? { ...l, isPreview: !l.isPreview }
+                  : l
+              ),
+            }
+          : s
+      )
+    )
   }
 
   const fileInputRef = useRef(null)
@@ -148,23 +142,22 @@ export function CurriculumBuilder() {
          })
        }))
     
-       setSections(sections.map((section, idx) => {
-         if (idx !== sections.length - 1) return section
-    
-         const startIndex = section.lectures.length + 1
-         const newLectures = fileInfos.map((info, i) => ({
-           id: Date.now() + i,
-           title: `Lecture ${startIndex + i}`,
-           videoUrl: info.url,
-           duration: info.duration,
-           isPreview: false,
-         }))
-    
-         return {
-           ...section,
-           lectures: [...section.lectures, ...newLectures],
-         }
-       }))
+       update(secs => {
+        const last = secs[secs.length - 1]
+        const start = last.lectures.length + 1
+        const newLectures = fileInfos.map((info, i) => ({
+          id: Date.now() + i,
+          title: `Lecture ${start + i}`,
+          videoUrl: info.url,
+          duration: info.duration,
+          isPreview: false,
+        }))
+        return secs.map((s, i) =>
+          i === secs.length - 1
+            ? { ...s, lectures: [...s.lectures, ...newLectures] }
+            : s
+        )
+      })
     
        e.target.value = ""
      }
