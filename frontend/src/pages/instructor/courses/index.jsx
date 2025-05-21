@@ -4,7 +4,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
@@ -18,14 +17,10 @@ import {
 } from "@/components/ui/table"
 import {
     ChevronDown,
-    FileText,
     Plus,
-    Search,
     Star,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
 import { InstructorSidebar } from "@/components/instructor-sidebar"
 import { AddCourseDialog } from "@/components/instructor/add-course-dialog"
 
