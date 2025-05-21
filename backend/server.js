@@ -4,6 +4,7 @@ const express = require("express")
 const cors = require("cors")
 const mongoose = require("mongoose")
 const authRoutes = require('./routes/auth-routes/index')
+const mediaRoutes = require('./routes/instructor-routes/media-routes')
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -26,6 +27,7 @@ mongoose.connect(MONGODB_URI)
 
 // routes configuration
 app.use('/api/auth', authRoutes);
+app.use('/api/media', mediaRoutes);
 
 app.listen(PORT, () => {
     console.log(`server is running on port ${PORT}`)
