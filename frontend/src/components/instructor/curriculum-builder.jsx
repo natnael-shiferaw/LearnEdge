@@ -3,6 +3,7 @@ import { useState } from "react"
 import { File, Plus, Trash, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Switch } from "@/components/ui/switch"
 import { VideoUploader } from "@/components/instructor/video-uploader"
 
 export function CurriculumBuilder() {
@@ -199,15 +200,13 @@ export function CurriculumBuilder() {
                       className="max-w-[300px]"
                     />
                     {/* Free preview toggle */}
-                    <label className="inline-flex items-center ml-4">
-                      <input
-                        type="checkbox"
-                        checked={lecture.isPreview}
-                        onChange={() => handleTogglePreview(section.id, lecture.id)}
-                        className="mr-1 h-5 w-5"
-                      />
-                      <span className="text-sm">Free preview</span>
-                    </label>
+                    <div className="inline-flex items-center ml-4 space-x-2">
+       <Switch
+         checked={lecture.isPreview}
+         onCheckedChange={() => handleTogglePreview(section.id, lecture.id)}
+       />
+       <span className="text-sm">Free preview</span>
+     </div>
                     {lecture.duration !== "0:00" && (
                       <span className="text-xs text-muted-foreground">{lecture.duration}</span>
                     )}
