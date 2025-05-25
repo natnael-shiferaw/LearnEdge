@@ -22,6 +22,7 @@ import { CourseImageUpload } from "@/components/instructor/course-image-upload"
 export function AddCourseDialog({ open, onOpenChange }) {
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
+  const totalSteps = 3
 
   const [sections, setSections] = useState([   // sections for the curriculum
     {
@@ -34,6 +35,7 @@ export function AddCourseDialog({ open, onOpenChange }) {
     },
   ])
 
+  // course form data
   const [courseData, setCourseData] = useState({
     title: "",
     category: "",
@@ -48,7 +50,28 @@ export function AddCourseDialog({ open, onOpenChange }) {
     curriculum: sections,
   })
 
-  const totalSteps = 3
+  // Basic Info is valid if all those fields are non-empty:
+  const basicInfoValid =
+    courseData.title.trim() !== "" &&
+    courseData.category.trim() !== "" &&
+    courseData.level.trim() !== "" &&
+    courseData.subtitle.trim() !== "" &&
+    courseData.description.trim() !== "" &&
+    courseData.welcomeMessage.trim() !== "" &&
+    courseData.price.trim() !== ""
+
+  // Learning objectives: at least one non-empty string
+  const haveObjectives =
+    courseData.learningObjectives.some((o) => o.trim() !== "")
+
+  //  Curriculum: at least one lecture anywhere has a videoUrl
+  const curriculumValid =
+    courseData.curriculum.some((section) =>
+      section.lectures.some((lec) => Boolean(lec.videoUrl))
+    )
+
+  // Course image must be set
+  const imageValid = Boolean(courseData.image)
 
   const handleChange = (field, value) => {
     setCourseData((prev) => ({ ...prev, [field]: value }))
@@ -315,10 +338,17 @@ export function AddCourseDialog({ open, onOpenChange }) {
         )}
 
         <DialogFooter className="flex items-center justify-between">
-          <Button type="button" variant="outline" onClick={step === 1 ? () => onOpenChange(false) : handleBack}>
+          <Button variant="outline" onClick={step === 1 ? () => onOpenChange(false) : handleBack}>
             {step === 1 ? "Cancel" : "Back"}
           </Button>
-          <Button type="button" onClick={step === totalSteps ? handleSubmit : handleNext}>
+          <Button
+            onClick={step === totalSteps ? handleSubmit : handleNext}
+            disabled={
+              (step === 1 && (!basicInfoValid || !haveObjectives)) ||
+              (step === 2 && !curriculumValid) ||
+              (step === 3 && !imageValid)
+            }
+          >
             {step === totalSteps ? "Create Course" : "Next"}
           </Button>
         </DialogFooter>
