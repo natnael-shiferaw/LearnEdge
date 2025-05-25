@@ -274,7 +274,10 @@ export function AddCourseDialog({ open, onOpenChange }) {
 
         {step === 3 && (
           <div className="grid gap-6">
-            <CourseImageUpload value={courseData.image} onChange={(image) => handleChange("image", image)} />
+            <CourseImageUpload
+              value={courseData.image}         // initially null or {url, publicId}
+              onChange={(img) => handleChange("image", img)}
+            />
 
             <div className="grid gap-3">
               <Label>Course Preview</Label>

@@ -5,16 +5,19 @@ const {uploadMediaCloudinary, deleteMediaFromCloudinary} = require('../../helper
 const router = express.Router()
 const upload = multer({dest: 'uploads/'});
 
-router.post('/upload', upload.single('file'), async() => {
-    try {
+router.post(
+    '/upload',
+    upload.single('file'),
+    async (req, res) => {
+      try {
         const result = await uploadMediaCloudinary(req.file.path);
-        res.status(200).json({success: true, data: result})
-
-    } catch (error) {
-        console.log(error);
-        res.stauts(500).json({success: false, message: 'Error uploading file'})
+        return res.status(200).json({ success: true, data: result });
+      } catch (error) {
+        console.error("upload error:", error);
+        return res.status(500).json({ success: false, message: 'Error uploading file' });
+      }
     }
-})
+);  
 
 router.delete('/delete/:id', async(req, res) => {
     try {

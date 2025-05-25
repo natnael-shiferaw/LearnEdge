@@ -1,11 +1,15 @@
-import { useRef } from "react"
+import { useRef, useState } from "react"
 import { File, Plus, Trash, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { VideoUploader } from "@/components/instructor/video-uploader"
+import { uploadMedia } from "@/services/mediaService"
 
 export function CurriculumBuilder({ sections, onChange }) {
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef(null)
+
   function formatDuration(seconds) {
     const m = Math.floor(seconds / 60).toString().padStart(2, "0")
     const s = Math.round(seconds % 60).toString().padStart(2, "0")
@@ -44,6 +48,7 @@ export function CurriculumBuilder({ sections, onChange }) {
       videoUrl: null,
       duration: "0:00",
       isPreview: false,
+      publicId: null,
     }
     update(secs =>
       secs.map(s =>
@@ -59,11 +64,11 @@ export function CurriculumBuilder({ sections, onChange }) {
       secs.map(s =>
         s.id === sectionId
           ? {
-              ...s,
-              lectures: s.lectures.map(l =>
-                l.id === lectureId ? { ...l, title } : l
-              ),
-            }
+            ...s,
+            lectures: s.lectures.map(l =>
+              l.id === lectureId ? { ...l, title } : l
+            ),
+          }
           : s
       )
     )
@@ -74,26 +79,9 @@ export function CurriculumBuilder({ sections, onChange }) {
       secs.map(s =>
         s.id === sectionId
           ? {
-              ...s,
-              lectures: s.lectures.filter(l => l.id !== lectureId),
-            }
-          : s
-      )
-    )
-  }
-
-  const handleVideoUpload = (sectionId, lectureId, videoUrl, duration) => {
-    update(secs =>
-      secs.map(s =>
-        s.id === sectionId
-          ? {
-              ...s,
-              lectures: s.lectures.map(l =>
-                l.id === lectureId
-                  ? { ...l, videoUrl, duration }
-                  : l
-              ),
-            }
+            ...s,
+            lectures: s.lectures.filter(l => l.id !== lectureId),
+          }
           : s
       )
     )
@@ -104,70 +92,89 @@ export function CurriculumBuilder({ sections, onChange }) {
       secs.map(s =>
         s.id === sectionId
           ? {
-              ...s,
-              lectures: s.lectures.map(l =>
-                l.id === lectureId
-                  ? { ...l, isPreview: !l.isPreview }
-                  : l
-              ),
-            }
+            ...s,
+            lectures: s.lectures.map(l =>
+              l.id === lectureId
+                ? { ...l, isPreview: !l.isPreview }
+                : l
+            ),
+          }
           : s
       )
     )
   }
 
-  const fileInputRef = useRef(null)
+  const handleBulkFiles = async (e) => {
+    const files = Array.from(e.target.files)
+    if (!files.length) return
 
-  const handleBulkUploadClick = () => fileInputRef.current?.click()
+    setIsUploading(true)
+    try {
+      // get durations
+      const fileInfos = await Promise.all(files.map(file =>
+        new Promise(resolve => {
+          const tmp = document.createElement("video")
+          tmp.preload = "metadata"
+          tmp.src = URL.createObjectURL(file)
+          tmp.onloadedmetadata = () => {
+            URL.revokeObjectURL(tmp.src)
+            resolve({ file, duration: formatDuration(tmp.duration) })
+          }
+        })
+      ))
 
-   const handleBulkFiles = async (e) => {
-       const files = Array.from(e.target.files)
-       if (!files.length) return
-    
-       // load each into a temporary <video> to grab .duration
-       const fileInfos = await Promise.all(files.map(file => {
-         return new Promise(resolve => {
-           const url = URL.createObjectURL(file)
-           const video = document.createElement("video")
-           video.preload = "metadata"
-           video.src = url
-           video.onloadedmetadata = () => {
-             URL.revokeObjectURL(url)
-             resolve({
-               file,
-               url,
-               duration: formatDuration(video.duration)
-             })
-           }
-         })
-       }))
-    
-       update(secs => {
+      // upload each to Cloudinary, catch per‐file errors
+      const uploadResults = await Promise.all(fileInfos.map(async ({ file, duration }) => {
+        try {
+          const { secure_url, public_id } = await uploadMedia(file)
+          return { secure_url, public_id, duration }
+        } catch (err) {
+          console.error("Upload failed for file", file.name, err)
+          return null
+        }
+      }))
+
+      // filter out any that failed
+      const successes = uploadResults.filter(r => r !== null)
+
+      // merge into your last section
+      update(secs => {
         const last = secs[secs.length - 1]
         const start = last.lectures.length + 1
-        const newLectures = fileInfos.map((info, i) => ({
+        const newLectures = successes.map((info, i) => ({
           id: Date.now() + i,
           title: `Lecture ${start + i}`,
-          videoUrl: info.url,
+          videoUrl: info.secure_url,
           duration: info.duration,
           isPreview: false,
+          publicId: info.public_id,
         }))
-        return secs.map((s, i) =>
-          i === secs.length - 1
+        return secs.map((s, idx) =>
+          idx === secs.length - 1
             ? { ...s, lectures: [...s.lectures, ...newLectures] }
             : s
         )
       })
-    
-       e.target.value = ""
-     }
-  
+    } finally {
+      setIsUploading(false)
+      e.target.value = ""
+    }
+  }
+
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">Course Curriculum</h3>
-        <Button variant="outline" onClick={handleBulkUploadClick}>
-          <Upload className="mr-2 h-4 w-4" /> Bulk Upload
+        <Button
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+        >
+          {isUploading
+            ? "Uploading..."
+            : <><Upload className="mr-2 h-4 w-4" /> Bulk Upload</>
+          }
         </Button>
         <input
           type="file"
@@ -214,12 +221,12 @@ export function CurriculumBuilder({ sections, onChange }) {
                     />
                     {/* Free preview toggle */}
                     <div className="inline-flex items-center ml-4 space-x-2">
-       <Switch
-         checked={lecture.isPreview}
-         onCheckedChange={() => handleTogglePreview(section.id, lecture.id)}
-       />
-       <span className="text-sm">Free preview</span>
-     </div>
+                      <Switch
+                        checked={lecture.isPreview}
+                        onCheckedChange={() => handleTogglePreview(section.id, lecture.id)}
+                      />
+                      <span className="text-sm">Free preview</span>
+                    </div>
                     {lecture.duration !== "0:00" && (
                       <span className="text-xs text-muted-foreground">{lecture.duration}</span>
                     )}
@@ -227,9 +234,28 @@ export function CurriculumBuilder({ sections, onChange }) {
 
                   <div className="flex items-center gap-2">
                     <VideoUploader
-                      onUpload={(videoUrl, duration) => handleVideoUpload(section.id, lecture.id, videoUrl, duration)}
                       currentVideo={lecture.videoUrl}
+                      currentPublicId={lecture.publicId}
+
+                      // single onUpload, capturing both URLs + publicId
+                      onUpload={(url, duration, publicId) => {
+                        update(secs =>
+                          secs.map(s =>
+                            s.id === section.id
+                              ? {
+                                ...s,
+                                lectures: s.lectures.map(l =>
+                                  l.id === lecture.id
+                                    ? { ...l, videoUrl: url, duration, publicId }
+                                    : l
+                                ),
+                              }
+                              : s
+                          )
+                        );
+                      }}
                     />
+
                     <Button variant="ghost" size="icon" onClick={() => handleDeleteLecture(section.id, lecture.id)}>
                       <Trash className="h-4 w-4" />
                       <span className="sr-only">Delete lecture</span>

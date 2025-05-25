@@ -11,11 +11,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
+import { uploadMedia, deleteMedia } from "@/services/mediaService"
 
-export function VideoUploader({ onUpload, currentVideo }) {
+export function VideoUploader({ onUpload, currentVideo , currentPublicId}) {
   const [videoFile, setVideoFile] = useState(null)
   const [videoPreviewUrl, setVideoPreviewUrl] = useState(currentVideo)
   const [videoDuration, setVideoDuration] = useState(null)
+  const [publicId, setPublicId] = useState(currentPublicId || null)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const fileInputRef = useRef(null)
 
@@ -50,23 +52,36 @@ export function VideoUploader({ onUpload, currentVideo }) {
     }
   }
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (videoFile) {
       // use the computed duration (fallback to "0:00")
       const duration = videoDuration ?? "0:00"
-      onUpload(videoPreviewUrl, duration)
+      // upload to backend → Cloudinary
+   const { secure_url, public_id } = await uploadMedia(videoFile)
+
+   // set the new publicId
+   setPublicId(public_id)
+
+   // 4) tell parent: url, duration, public_id
+   onUpload(secure_url, duration, public_id)
       setIsDialogOpen(false)
     }
   }
 
-  const handleRemoveVideo = () => {
+  const handleRemoveVideo = async () => {
+    // if we’d previously saved a publicId, ask backend to delete
+    if (publicId) {
+      await deleteMedia(publicId)
+      setPublicId(null)
+    }
     setVideoFile(null)
     setVideoDuration(null)
-    if (videoPreviewUrl) {
-      URL.revokeObjectURL(videoPreviewUrl)
-    }
+    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
     setVideoPreviewUrl(null)
-  }
+ 
+    // notify parent that video is gone
+    onUpload(null, "0:00", null)
+  } 
 
   const triggerFileInput = () => {
     fileInputRef.current?.click()
