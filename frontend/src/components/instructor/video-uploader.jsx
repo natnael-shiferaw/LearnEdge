@@ -1,4 +1,4 @@
-import { useState, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Play, Upload, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -18,8 +18,18 @@ export function VideoUploader({ onUpload, currentVideo , currentPublicId}) {
   const [videoPreviewUrl, setVideoPreviewUrl] = useState(currentVideo)
   const [videoDuration, setVideoDuration] = useState(null)
   const [publicId, setPublicId] = useState(currentPublicId || null)
+  const [isUploading, setUploading] = useState(false)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const fileInputRef = useRef(null)
+
+  useEffect(() => {
+        if (isDialogOpen) {
+          setVideoFile(null)
+          setVideoDuration(null)
+          setVideoPreviewUrl(currentVideo)
+          setPublicId(currentPublicId || null)
+        }
+      }, [isDialogOpen, currentVideo, currentPublicId])
 
   // helper to format seconds as "MM:SS"
   function formatDuration(seconds) {
@@ -53,20 +63,25 @@ export function VideoUploader({ onUpload, currentVideo , currentPublicId}) {
   }
 
   const handleUpload = async () => {
-    if (videoFile) {
-      // use the computed duration (fallback to "0:00")
-      const duration = videoDuration ?? "0:00"
-      // upload to backend → Cloudinary
-   const { secure_url, public_id } = await uploadMedia(videoFile)
-
-   // set the new publicId
-   setPublicId(public_id)
-
-   // 4) tell parent: url, duration, public_id
-   onUpload(secure_url, duration, public_id)
-      setIsDialogOpen(false)
-    }
-  }
+        if (!videoFile) return
+    
+        setUploading(true)
+        try {
+          const duration = videoDuration ?? "0:00"
+          // upload to cloudinary
+          const { secure_url, public_id } = await uploadMedia(videoFile)
+          // set public id
+          setPublicId(public_id)
+          // bubble up url/duration/publicId
+          onUpload(secure_url, duration, public_id)
+          // close dialog
+          setIsDialogOpen(false)
+        } catch (err) {
+          console.error("Video upload failed:", err)
+        } finally {
+          setUploading(false)
+        }
+      }
 
   const handleRemoveVideo = async () => {
     // if we’d previously saved a publicId, ask backend to delete
@@ -84,7 +99,7 @@ export function VideoUploader({ onUpload, currentVideo , currentPublicId}) {
   } 
 
   const triggerFileInput = () => {
-    fileInputRef.current?.click()
+    if (!isUploading) fileInputRef.current?.click()
   }
 
   return (
@@ -151,12 +166,25 @@ export function VideoUploader({ onUpload, currentVideo , currentPublicId}) {
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+        <Button
+            variant="outline"
+            onClick={() => setIsDialogOpen(false)}
+            disabled={isUploading}
+          >
             Cancel
           </Button>
-          <Button onClick={handleUpload} disabled={!videoFile && !currentVideo}>
-            {currentVideo && !videoFile ? "Save" : "Upload"}
-          </Button>
+
+          {isUploading ? (
+   <Button disabled>Uploading…</Button>
+ ) : videoFile
+      ? <Button onClick={handleUpload}>Upload</Button>
+      : <Button
+          onClick={() => setIsDialogOpen(false)}
+          disabled={!currentVideo}
+        >
+          Save
+        </Button>
+ }
         </DialogFooter>
       </DialogContent>
     </Dialog>
