@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useContext, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { Check, ChevronRight, X } from "lucide-react"
 
@@ -18,9 +18,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CurriculumBuilder } from "@/components/instructor/curriculum-builder"
 import { CourseImageUpload } from "@/components/instructor/course-image-upload"
+import { AuthContext } from "@/context/auth-context"
+import { addNewCourseService } from "@/services/instructorService"
 
 export function AddCourseDialog({ open, onOpenChange }) {
   const navigate = useNavigate()
+  const { auth } = useContext(AuthContext)
   const [step, setStep] = useState(1)
   const totalSteps = 3
 
@@ -95,10 +98,22 @@ export function AddCourseDialog({ open, onOpenChange }) {
     newObjectives.splice(index, 1)
     setCourseData((prev) => ({ ...prev, learningObjectives: newObjectives }))
   }
+  // handles create a new course
+  const handleCreateCourse = async () => {
+    const courseFormDataFinal = {
+      instructorId: auth?.user?._id,
+      instructorName: auth?.user?.username,
+      createdAt: new Date(),
+      ...courseData,
+      students: [],
+      isPublished: true,
+    }
 
-  const handleSubmit = () => {
-    // Here you would typically send the data to your backend
-    console.log("Course data:", courseData)
+    // console.log("Final Course data:", courseFormDataFinal)
+    const response = await addNewCourseService(courseFormDataFinal)
+    if(response?.success) {
+      console.log("Frontend course creation successfull!")
+    }
     onOpenChange(false)
     // Redirect to the courses page
     navigate("/instructor/courses")
@@ -342,7 +357,7 @@ export function AddCourseDialog({ open, onOpenChange }) {
             {step === 1 ? "Cancel" : "Back"}
           </Button>
           <Button
-            onClick={step === totalSteps ? handleSubmit : handleNext}
+            onClick={step === totalSteps ? handleCreateCourse : handleNext}
             disabled={
               (step === 1 && (!basicInfoValid || !haveObjectives)) ||
               (step === 2 && !curriculumValid) ||
