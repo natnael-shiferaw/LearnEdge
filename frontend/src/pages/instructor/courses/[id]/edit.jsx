@@ -1,6 +1,5 @@
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
-import { useParams } from 'react-router-dom'
+import { useState, useEffect } from "react"
+import { useNavigate, useParams } from "react-router-dom"
 import { ArrowLeft, Check, Save, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -12,79 +11,162 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { InstructorSidebar } from "@/components/instructor-sidebar"
 import { CurriculumBuilder } from "@/components/instructor/curriculum-builder"
 import { CourseImageUpload } from "@/components/instructor/course-image-upload"
+import {
+  fetchInstructorCourseDetailsService,
+  updateCourseByIdService,
+} from "@/services/instructorService"
 
 export default function CourseEditPage() {
   const navigate = useNavigate()
   let { id } = useParams()
   const courseId = id
 
-  // Mock course data -  fetched  from your API
+  // Keep track of loading/fetch state
+  const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState(null)
+
+  // ③ courseData state exactly matches the fields the API expects.
   const [courseData, setCourseData] = useState({
-    title: courseId === "new" ? "" : "Web Development Bootcamp",
-    category: courseId === "new" ? "" : "development",
-    level: courseId === "new" ? "" : "beginner",
-    language: courseId === "new" ? "English" : "English",
-    subtitle: courseId === "new" ? "" : "Learn web development from scratch to advanced concepts",
-    description:
-      courseId === "new"
-        ? ""
-        : "This comprehensive course covers HTML, CSS, JavaScript, React, and Node.js to help you become a full-stack web developer.",
-    price: courseId === "new" ? "" : "89.99",
-    welcomeMessage:
-      courseId === "new" ? "" : "Welcome to the Web Development Bootcamp! I'm excited to have you on board.",
-    learningObjectives:
-      courseId === "new"
-        ? ["", "", ""]
-        : [
-            "Build responsive websites using HTML, CSS, and JavaScript",
-            "Create dynamic web applications with React",
-            "Develop backend APIs with Node.js and Express",
-          ],
-    image: courseId === "new" ? null : "/placeholder.svg?height=720&width=1280",
+    title: "",
+    category: "",
+    level: "",
+    language: "English",
+    subtitle: "",
+    description: "",
+    price: "",
+    welcomeMessage: "",
+    learningObjectives: [""],      // start with a single blank objective
+    image: null,                   // will become { url, publicId } once uploaded
+    curriculum: [],                // will become array of sections/lectures
   })
 
   const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState(null)
 
+  // Helper to update any primitive field
   const handleChange = (field, value) => {
-    setCourseData((prev) => ({ ...prev, [field]: value }))
+    setCourseData(prev => ({ ...prev, [field]: value }))
     setSaveStatus(null)
   }
 
+  // Learning‐objective handlers
   const handleLearningObjectiveChange = (index, value) => {
     const newObjectives = [...courseData.learningObjectives]
     newObjectives[index] = value
-    setCourseData((prev) => ({ ...prev, learningObjectives: newObjectives }))
+    setCourseData(prev => ({ ...prev, learningObjectives: newObjectives }))
     setSaveStatus(null)
   }
 
   const handleAddLearningObjective = () => {
-    setCourseData((prev) => ({
+    setCourseData(prev => ({
       ...prev,
       learningObjectives: [...prev.learningObjectives, ""],
     }))
+    setSaveStatus(null)
   }
 
   const handleRemoveLearningObjective = (index) => {
     const newObjectives = [...courseData.learningObjectives]
     newObjectives.splice(index, 1)
-    setCourseData((prev) => ({ ...prev, learningObjectives: newObjectives }))
+    setCourseData(prev => ({ ...prev, learningObjectives: newObjectives }))
     setSaveStatus(null)
   }
 
-  const handleSave = () => {
+  // When “Save Changes” is clicked: call the update service
+  const handleSave = async () => {
     setIsSaving(true)
-
-    // Simulate API call
-    setTimeout(() => {
-      setIsSaving(false)
-      setSaveStatus("success")
-
-      // Clear success message after 3 seconds
+    try {
+      // If this is an “existing” course, call updateCourseByIdService
+      if (courseId !== "new") {
+        await updateCourseByIdService(courseId, courseData)
+        setSaveStatus("success")
+        // wait a second (so the user sees “Saved successfully”), then redirect:
       setTimeout(() => {
-        setSaveStatus(null)
-      }, 3000)
-    }, 1500)
+        navigate("/instructor/courses");
+      }, 1000);
+      } else {
+        // For now, we’ll just return.
+        setSaveStatus("success")
+      }
+    } catch (err) {
+      console.error("Error saving course:", err)
+      setSaveStatus("error")
+    } finally {
+      setIsSaving(false)
+      // Clear the success/error message after a short delay
+      setTimeout(() => setSaveStatus(null), 3000)
+    }
+  }
+
+  // On mount (and whenever courseId changes), fetch real data if not “new”
+  useEffect(() => {
+    if (courseId === "new") {
+      setIsLoading(false)
+      return
+    }
+
+    let isMounted = true
+    setIsLoading(true)
+    setLoadError(null)
+
+    fetchInstructorCourseDetailsService(courseId)
+      .then(res => {
+        if (!isMounted) return
+        if (res.success) {
+          // The API returns res.data as the saved course object.
+          // Overwrite courseData with exactly what the backend sent.
+          setCourseData({
+            title: res.data.title || "",
+            category: res.data.category || "",
+            level: res.data.level || "",
+            language: res.data.language || "English",
+            subtitle: res.data.subtitle || "",
+            description: res.data.description || "",
+            price: res.data.price?.toString() || "",
+            welcomeMessage: res.data.welcomeMessage || "",
+            learningObjectives: res.data.learningObjectives || [""],
+            image: res.data.image || null,                 // expects { url, publicId }
+            curriculum: res.data.curriculum || [],           // expects array of sections
+          })
+        } else {
+          setLoadError("Failed to fetch course details")
+        }
+      })
+      .catch(err => {
+        console.error("Network error fetching course:", err)
+        if (isMounted) setLoadError("Network error")
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [courseId])
+
+  //  While fetching, show a loading state
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen">
+        <InstructorSidebar />
+        <div className="container py-8">
+          <p>Loading course details…</p>
+        </div>
+      </div>
+    )
+  }
+
+  // If fetch failed, show an error
+  if (loadError) {
+    return (
+      <div className="flex min-h-screen">
+        <InstructorSidebar />
+        <div className="container py-8">
+          <p className="text-red-500">{loadError}</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -94,10 +176,16 @@ export default function CourseEditPage() {
         <main className="flex-1 overflow-y-auto bg-muted/40 pb-16">
           <div className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-6 py-3">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/instructor")}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/instructor/courses")}
+              >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
-              <h1 className="text-xl font-semibold">{courseId === "new" ? "Create New Course" : "Edit Course"}</h1>
+              <h1 className="text-xl font-semibold">
+                {courseId === "new" ? "Create New Course" : "Edit Course"}
+              </h1>
             </div>
             <div className="flex items-center gap-2">
               {saveStatus === "success" && (
@@ -105,9 +193,14 @@ export default function CourseEditPage() {
                   <Check className="mr-1 h-4 w-4" /> Saved successfully
                 </div>
               )}
+              {saveStatus === "error" && (
+                <div className="flex items-center text-sm text-red-600">
+                  <X className="mr-1 h-4 w-4" /> Save failed
+                </div>
+              )}
               <Button onClick={handleSave} disabled={isSaving}>
                 {isSaving ? (
-                  "Saving..."
+                  "Saving…"
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" /> Save Changes
@@ -123,9 +216,9 @@ export default function CourseEditPage() {
                 <TabsTrigger value="basic">Basic Info</TabsTrigger>
                 <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
-                <TabsTrigger value="pricing">Pricing</TabsTrigger>
               </TabsList>
 
+              {/* ──────────────────────────────────────── BASIC INFO TAB ──────────────────────────────────────── */}
               <TabsContent value="basic" className="space-y-6">
                 <div className="grid gap-6">
                   <div className="grid gap-3">
@@ -141,32 +234,52 @@ export default function CourseEditPage() {
                   <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div className="grid gap-3">
                       <Label htmlFor="category">Category</Label>
-                      <Select value={courseData.category} onValueChange={(value) => handleChange("category", value)}>
+                      <Select
+                        value={courseData.category}
+                        onValueChange={(value) =>
+                          handleChange("category", value)
+                        }
+                      >
                         <SelectTrigger id="category">
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="development">Development</SelectItem>
+                          <SelectItem value="development">
+                            Development
+                          </SelectItem>
                           <SelectItem value="business">Business</SelectItem>
                           <SelectItem value="design">Design</SelectItem>
                           <SelectItem value="marketing">Marketing</SelectItem>
-                          <SelectItem value="data-science">Data Science</SelectItem>
-                          <SelectItem value="personal-development">Personal Development</SelectItem>
+                          <SelectItem value="data-science">
+                            Data Science
+                          </SelectItem>
+                          <SelectItem value="personal-development">
+                            Personal Development
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div className="grid gap-3">
                       <Label htmlFor="level">Level</Label>
-                      <Select value={courseData.level} onValueChange={(value) => handleChange("level", value)}>
+                      <Select
+                        value={courseData.level}
+                        onValueChange={(value) =>
+                          handleChange("level", value)
+                        }
+                      >
                         <SelectTrigger id="level">
                           <SelectValue placeholder="Select level" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="beginner">Beginner</SelectItem>
-                          <SelectItem value="intermediate">Intermediate</SelectItem>
+                          <SelectItem value="intermediate">
+                            Intermediate
+                          </SelectItem>
                           <SelectItem value="advanced">Advanced</SelectItem>
-                          <SelectItem value="all-levels">All Levels</SelectItem>
+                          <SelectItem value="all-levels">
+                            All Levels
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -175,7 +288,12 @@ export default function CourseEditPage() {
                   <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div className="grid gap-3">
                       <Label htmlFor="language">Primary Language</Label>
-                      <Select value={courseData.language} onValueChange={(value) => handleChange("language", value)}>
+                      <Select
+                        value={courseData.language}
+                        onValueChange={(value) =>
+                          handleChange("language", value)
+                        }
+                      >
                         <SelectTrigger id="language">
                           <SelectValue placeholder="Select language" />
                         </SelectTrigger>
@@ -197,7 +315,9 @@ export default function CourseEditPage() {
                         type="number"
                         placeholder="e.g., 49.99"
                         value={courseData.price}
-                        onChange={(e) => handleChange("price", e.target.value)}
+                        onChange={(e) =>
+                          handleChange("price", e.target.value)
+                        }
                       />
                     </div>
                   </div>
@@ -208,7 +328,9 @@ export default function CourseEditPage() {
                       id="subtitle"
                       placeholder="A brief description of your course"
                       value={courseData.subtitle}
-                      onChange={(e) => handleChange("subtitle", e.target.value)}
+                      onChange={(e) =>
+                        handleChange("subtitle", e.target.value)
+                      }
                     />
                   </div>
 
@@ -219,7 +341,9 @@ export default function CourseEditPage() {
                       placeholder="Provide a detailed description of your course"
                       className="min-h-[200px]"
                       value={courseData.description}
-                      onChange={(e) => handleChange("description", e.target.value)}
+                      onChange={(e) =>
+                        handleChange("description", e.target.value)
+                      }
                     />
                   </div>
 
@@ -230,19 +354,28 @@ export default function CourseEditPage() {
                       placeholder="A message to welcome students to your course"
                       className="min-h-[120px]"
                       value={courseData.welcomeMessage}
-                      onChange={(e) => handleChange("welcomeMessage", e.target.value)}
+                      onChange={(e) =>
+                        handleChange("welcomeMessage", e.target.value)
+                      }
                     />
                   </div>
 
                   <div className="grid gap-3">
                     <Label>Learning Objectives</Label>
-                    <p className="text-sm text-muted-foreground">What will students learn in your course?</p>
+                    <p className="text-sm text-muted-foreground">
+                      What will students learn in your course?
+                    </p>
                     {courseData.learningObjectives.map((objective, index) => (
                       <div key={index} className="flex items-center gap-2">
                         <Input
                           placeholder={`Learning objective ${index + 1}`}
                           value={objective}
-                          onChange={(e) => handleLearningObjectiveChange(index, e.target.value)}
+                          onChange={(e) =>
+                            handleLearningObjectiveChange(
+                              index,
+                              e.target.value
+                            )
+                          }
                         />
                         <Button
                           type="button"
@@ -254,113 +387,39 @@ export default function CourseEditPage() {
                         </Button>
                       </div>
                     ))}
-                    <Button type="button" variant="outline" className="mt-2" onClick={handleAddLearningObjective}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mt-2"
+                      onClick={handleAddLearningObjective}
+                    >
                       Add Learning Objective
                     </Button>
                   </div>
                 </div>
               </TabsContent>
 
+              {/* ──────────────────────────────────────── CURRICULUM TAB ──────────────────────────────────────── */}
               <TabsContent value="curriculum" className="space-y-6">
-                <CurriculumBuilder />
+                {/* ⑩ Pass the existing curriculum array into CurriculumBuilder */}
+                <CurriculumBuilder
+                  sections={courseData.curriculum}
+                  onChange={(updated) =>
+                    setCourseData(prev => ({
+                      ...prev,
+                      curriculum: updated,
+                    }))
+                  }
+                />
               </TabsContent>
 
+              {/* ──────────────────────────────────────── SETTINGS TAB ──────────────────────────────────────── */}
               <TabsContent value="settings" className="space-y-6">
-                <CourseImageUpload value={courseData.image} onChange={(image) => handleChange("image", image)} />
+                <CourseImageUpload
+                  value={courseData.image?.url || null}
+                  onChange={(img) => handleChange("image", img)}
+                />
 
-                <div className="grid gap-6">
-                  <div className="grid gap-3">
-                    <Label htmlFor="course-url">Course URL</Label>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">learnedge.com/courses/</span>
-                      <Input
-                        id="course-url"
-                        placeholder="web-development-bootcamp"
-                        value={courseData.title ? courseData.title.toLowerCase().replace(/\s+/g, "-") : ""}
-                        readOnly
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      This URL is automatically generated from your course title.
-                    </p>
-                  </div>
-
-                  <div className="grid gap-3">
-                    <Label htmlFor="course-visibility">Course Visibility</Label>
-                    <Select defaultValue="draft">
-                      <SelectTrigger id="course-visibility">
-                        <SelectValue placeholder="Select visibility" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="draft">Draft (not visible to students)</SelectItem>
-                        <SelectItem value="published">Published (visible to all)</SelectItem>
-                        <SelectItem value="private">Private (visible with link only)</SelectItem>
-                        <SelectItem value="scheduled">Scheduled (publish on a future date)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="grid gap-3">
-                    <Label htmlFor="course-requirements">Course Requirements</Label>
-                    <Textarea
-                      id="course-requirements"
-                      placeholder="What should students know before taking this course?"
-                      className="min-h-[120px]"
-                    />
-                  </div>
-
-                  <div className="grid gap-3">
-                    <Label htmlFor="course-tags">Course Tags</Label>
-                    <Input id="course-tags" placeholder="e.g., web development, javascript, react" />
-                    <p className="text-xs text-muted-foreground">
-                      Separate tags with commas. These help students find your course.
-                    </p>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="pricing" className="space-y-6">
-                <div className="grid gap-6">
-                  <div className="grid gap-3">
-                    <Label htmlFor="course-price">Regular Price ($)</Label>
-                    <Input
-                      id="course-price"
-                      type="number"
-                      placeholder="e.g., 49.99"
-                      value={courseData.price}
-                      onChange={(e) => handleChange("price", e.target.value)}
-                    />
-                  </div>
-
-                  <div className="grid gap-3">
-                    <Label htmlFor="course-sale-price">Sale Price ($)</Label>
-                    <Input id="course-sale-price" type="number" placeholder="e.g., 39.99" />
-                    <p className="text-xs text-muted-foreground">Leave empty if not on sale.</p>
-                  </div>
-
-                  <div className="grid gap-3">
-                    <Label>Pricing Options</Label>
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="subscription" />
-                        <Label htmlFor="subscription">Include in subscription plans</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="team-pricing" />
-                        <Label htmlFor="team-pricing">Enable team pricing</Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="bulk-pricing" />
-                        <Label htmlFor="bulk-pricing">Enable bulk purchase discounts</Label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3">
-                    <Label htmlFor="course-coupons">Coupon Codes</Label>
-                    <Button variant="outline">Manage Coupon Codes</Button>
-                  </div>
-                </div>
               </TabsContent>
             </Tabs>
           </div>

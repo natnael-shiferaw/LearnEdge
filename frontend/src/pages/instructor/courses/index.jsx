@@ -117,7 +117,7 @@ function InstructorCoursesPage() {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => navigate(`/instructor/courses/${course.id}/edit`)}>
+                                                            <DropdownMenuItem onClick={() => navigate(`/instructor/courses/${course._id}/edit`)}>
                                                                 Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />

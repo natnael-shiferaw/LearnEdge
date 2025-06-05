@@ -57,7 +57,7 @@ const getCourseDetailsByID = async (req, res) => {
 const updateCourseByID = async (req, res) => {
     try {
         const {id} = req.params;
-        const updatedCourseData = req.body();
+        const updatedCourseData = req.body;
         const updatedCourse = await Course.findByIdAndUpdate(id, updatedCourseData, {new: true});
         
         if(!updatedCourse) {
