@@ -6,7 +6,6 @@ import {
   LayoutDashboard,
   LogOut,
   PanelLeft,
-  Settings,
   Users,
 } from "lucide-react"
 
@@ -41,12 +40,6 @@ export function InstructorSidebar() {
       icon: Users,
       href: "/instructor/students",
       active: pathname === "/instructor/students",
-    },
-    {
-      label: "Settings",
-      icon: Settings,
-      href: "/instructor/settings",
-      active: pathname === "/instructor/settings",
     },
     {
       label: "LogOut",

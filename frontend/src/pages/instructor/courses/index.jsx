@@ -18,7 +18,6 @@ import {
 import {
     ChevronDown,
     Plus,
-    Star,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { InstructorSidebar } from "@/components/instructor-sidebar"
@@ -32,32 +31,32 @@ function InstructorCoursesPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState(null)
 
-    useEffect(() => {
-        let isMounted = true
-
-        async function loadCourses() {
-            setLoading(true)
-            setError(null)
-            try {
-                const result = await fetchInstructorCourseListService()
-                if (result.success) {
-                    if (isMounted) setCourses(result.data)
-                } else {
-                    if (isMounted) setError("Failed to load courses")
-                }
-            } catch (err) {
-                console.error("Error fetching courses:", err)
-                if (isMounted) setError("Network error")
-            } finally {
-                if (isMounted) setLoading(false)
-            }
+    const loadCourses = async () => {
+        setLoading(true)
+        setError(null)
+        try {
+          const result = await fetchInstructorCourseListService()
+          if (result.success) setCourses(result.data)
+          else setError("Failed to load courses")
+        } catch {
+          setError("Network error")
+        } finally {
+          setLoading(false)
         }
-
+      }
+    
+      useEffect(() => {
         loadCourses()
-        return () => {
-            isMounted = false
+      }, [])
+    
+      // Whenever the dialog closes (isAddCourseOpen changes from true → false),
+      // re‐fetch:
+      useEffect(() => {
+        if (!isAddCourseOpen) {
+          // the dialog was just closed – re‐pull the list
+          loadCourses()
         }
-    }, [])
+      }, [isAddCourseOpen])
 
     // function to hanle delete
     const handleDelete = async (courseIdToDelete) => {

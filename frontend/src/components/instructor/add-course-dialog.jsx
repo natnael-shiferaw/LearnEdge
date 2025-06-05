@@ -26,6 +26,7 @@ export function AddCourseDialog({ open, onOpenChange }) {
   const { auth } = useContext(AuthContext)
   const [step, setStep] = useState(1)
   const totalSteps = 3
+  const [saveStatus, setSaveStatus] = useState(null)
 
   const [sections, setSections] = useState([   // sections for the curriculum
     {
@@ -112,11 +113,15 @@ export function AddCourseDialog({ open, onOpenChange }) {
     // console.log("Final Course data:", courseFormDataFinal)
     const response = await addNewCourseService(courseFormDataFinal)
     if(response?.success) {
-      console.log("Frontend course creation successfull!")
+      setSaveStatus("success")
+        // wait a second (so the user sees “Saved successfully”), then redirect:
+      setTimeout(() => {
+        navigate("/instructor/courses");
+      }, 3000);
+    } else {
+      setSaveStatus("error")
     }
     onOpenChange(false)
-    // Redirect to the courses page
-    navigate("/instructor/courses")
   }
 
   const handleNext = () => {
@@ -356,7 +361,18 @@ export function AddCourseDialog({ open, onOpenChange }) {
           <Button variant="outline" onClick={step === 1 ? () => onOpenChange(false) : handleBack}>
             {step === 1 ? "Cancel" : "Back"}
           </Button>
-          <Button
+          <div className="flex items-center gap-2">
+          {saveStatus === "success" && (
+                <div className="flex items-center text-sm text-green-600">
+                  <Check className="mr-1 h-4 w-4" /> Saved successfully
+                </div>
+              )}
+              {saveStatus === "error" && (
+                <div className="flex items-center text-sm text-red-600">
+                  <X className="mr-1 h-4 w-4" /> Save failed
+                </div>
+              )}
+              <Button
             onClick={step === totalSteps ? handleCreateCourse : handleNext}
             disabled={
               (step === 1 && (!basicInfoValid || !haveObjectives)) ||
@@ -366,6 +382,8 @@ export function AddCourseDialog({ open, onOpenChange }) {
           >
             {step === totalSteps ? "Create Course" : "Next"}
           </Button>
+          </div>
+          
         </DialogFooter>
       </DialogContent>
     </Dialog>
