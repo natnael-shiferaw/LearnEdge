@@ -23,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { InstructorSidebar } from "@/components/instructor-sidebar"
 import { AddCourseDialog } from "@/components/instructor/add-course-dialog"
-import { fetchInstructorCourseListService } from "@/services/instructorService"
+import { fetchInstructorCourseListService, deleteCourseByIdService } from "@/services/instructorService"
 
 function InstructorCoursesPage() {
     const navigate = useNavigate()
@@ -58,6 +58,27 @@ function InstructorCoursesPage() {
             isMounted = false
         }
     }, [])
+
+    // function to hanle delete
+    const handleDelete = async (courseIdToDelete) => {
+        if (!confirm("Are you sure you want to delete this course?")) {
+          return
+        }
+    
+        try {
+          const res = await deleteCourseByIdService(courseIdToDelete)
+          if (res.success) {
+            // Remove the deleted course from local state so UI updates immediately
+            setCourses(prev => prev.filter(c => c._id !== courseIdToDelete))
+          } else {
+            console.error("Failed to delete course on server:", res.message)
+            alert("Could not delete course. Please try again.")
+          }
+        } catch (err) {
+          console.error("Delete API error:", err)
+          alert("Network error while deleting course.")
+        }
+      }
 
     return (
         <div className="flex min-h-screen flex-col">
@@ -117,11 +138,11 @@ function InstructorCoursesPage() {
                                                             </Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => navigate(`/instructor/courses/${course._id}/edit`)}>
+                                                            <DropdownMenuItem onClick={() => navigate(`/instructor/courses/${course._id}/edit`)} className='hover:cursor-pointer'>
                                                                 Edit
                                                             </DropdownMenuItem>
                                                             <DropdownMenuSeparator />
-                                                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => handleDelete(course._id)} className="text-destructive hover:cursor-pointer">Delete</DropdownMenuItem>
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
                                                 </TableCell>
