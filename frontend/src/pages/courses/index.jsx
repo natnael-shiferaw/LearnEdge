@@ -138,6 +138,20 @@ export default function CoursesPage() {
     })
   }, [filteredCourses, sortOption])
 
+  // ── 8) Helper: convert "MM:SS" (or "H:MM:SS") strings into total seconds
+  function parseDurationToSeconds(durationStr) {
+    // e.g. "5:23" → [ "5", "23" ] or "1:05:23" → [ "1", "05", "23" ]
+    const parts = durationStr.split(":").map((p) => Number(p))
+    if (parts.length === 2) {
+      // MM:SS
+      return parts[0] * 60 + parts[1]
+    } else if (parts.length === 3) {
+      // H:MM:SS
+      return parts[0] * 3600 + parts[1] * 60 + parts[2]
+    }
+    return 0
+  }
+
   // Show “Loading” or “Error” states first
   if (loading) {
     return (
@@ -316,10 +330,21 @@ export default function CoursesPage() {
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {sortedCourses.map((course) => {
+              // Compute “total seconds” from every lecture’s duration
+              let totalSeconds = 0
+              course.curriculum.forEach((section) => {
+                section.lectures.forEach((lec) => {
+                  totalSeconds += parseDurationToSeconds(lec.duration || "0:00")
+                })
+              })
+              // Convert to hours (decimal)
+              const hoursDecimal = totalSeconds / 3600
+              // Round to one decimal place
+              const courseHours = hoursDecimal.toFixed(1)
               const enrolledCount = Array.isArray(course.students)
                 ? course.students.length
                 : 0
-              const courseHours = course.hours || 0
+
               const ratingValue = course.rating ?? 4.8
               const imageUrl = course.image?.url || "/placeholder.svg"
 
