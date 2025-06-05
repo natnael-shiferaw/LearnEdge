@@ -1,8 +1,22 @@
-import { useState } from "react"
-import {Link} from "react-router-dom"
-import { ArrowUpDown, ChevronDown, Clock, Search, Star } from "lucide-react"
+// src/pages/CoursesPage.jsx
+
+import { useState, useEffect, useMemo } from "react"
+import { Link } from "react-router-dom"
+import {
+  ArrowUpDown,
+  ChevronDown,
+  Clock,
+  Search,
+  Star,
+} from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
@@ -16,158 +30,144 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 
-export default function CoursesPage() {
-  // Mock data for courses
-  const allCourses = [
-    {
-      id: 1,
-      title: "Web Development Bootcamp",
-      instructor: "Sarah Johnson",
-      rating: 4.8,
-      students: 12453,
-      hours: 42,
-      level: "Beginner",
-      image: "/placeholder.svg?height=200&width=350",
-      price: "$89.99",
-      category: "Development",
-    },
-    {
-      id: 2,
-      title: "Data Science Fundamentals",
-      instructor: "Michael Chen",
-      rating: 4.7,
-      students: 8765,
-      hours: 38,
-      level: "Intermediate",
-      image: "/placeholder.svg?height=200&width=350",
-      price: "$94.99",
-      category: "Data Science",
-    },
-    {
-      id: 3,
-      title: "UX/UI Design Masterclass",
-      instructor: "Emma Rodriguez",
-      rating: 4.9,
-      students: 6542,
-      hours: 35,
-      level: "All Levels",
-      image: "/placeholder.svg?height=200&width=350",
-      price: "$79.99",
-      category: "Design",
-    },
-    {
-      id: 4,
-      title: "Machine Learning A-Z",
-      instructor: "David Kim",
-      rating: 4.8,
-      students: 9876,
-      hours: 45,
-      level: "Advanced",
-      image: "/placeholder.svg?height=200&width=350",
-      price: "$99.99",
-      category: "Data Science",
-    },
-    {
-      id: 5,
-      title: "JavaScript Advanced Concepts",
-      instructor: "Sarah Johnson",
-      rating: 4.6,
-      students: 7654,
-      hours: 28,
-      level: "Intermediate",
-      image: "/placeholder.svg?height=200&width=350",
-      price: "$69.99",
-      category: "Development",
-    },
-    {
-      id: 6,
-      title: "Digital Marketing Masterclass",
-      instructor: "Jessica Lee",
-      rating: 4.7,
-      students: 5432,
-      hours: 32,
-      level: "Beginner",
-      image: "/placeholder.svg?height=200&width=350",
-      price: "$84.99",
-      category: "Marketing",
-    },
-    {
-      id: 7,
-      title: "Python for Data Analysis",
-      instructor: "Michael Chen",
-      rating: 4.8,
-      students: 8765,
-      hours: 36,
-      level: "Intermediate",
-      image: "/placeholder.svg?height=200&width=350",
-      price: "$89.99",
-      category: "Data Science",
-    },
-    {
-      id: 8,
-      title: "Graphic Design Fundamentals",
-      instructor: "Emma Rodriguez",
-      rating: 4.7,
-      students: 4321,
-      hours: 30,
-      level: "Beginner",
-      image: "/placeholder.svg?height=200&width=350",
-      price: "$74.99",
-      category: "Design",
-    },
-  ]
+import {
+  fetchStudentViewCourseListService,
+} from "@/services/studentService"
 
+export default function CoursesPage() {
+  // State for fetched courses, loading, and any error
+  const [courses, setCourses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  //Filters & sort state
   const [searchTerm, setSearchTerm] = useState("")
   const [priceRange, setPriceRange] = useState([0, 100])
   const [selectedCategories, setSelectedCategories] = useState([])
   const [selectedLevels, setSelectedLevels] = useState([])
   const [sortOption, setSortOption] = useState("popular")
 
-  // Filter courses based on search term, price range, categories, and levels
-  const filteredCourses = allCourses.filter((course) => {
-    const matchesSearch =
-      course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      course.instructor.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesPrice =
-      Number.parseInt(course.price.replace("$", "")) >= priceRange[0] &&
-      Number.parseInt(course.price.replace("$", "")) <= priceRange[1]
-    const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(course.category)
-    const matchesLevel = selectedLevels.length === 0 || selectedLevels.includes(course.level)
+  // Fetch from backend on mount
+  useEffect(() => {
+    let isMounted = true
+    setLoading(true)
+    setError(null)
 
-    return matchesSearch && matchesPrice && matchesCategory && matchesLevel
-  })
+    fetchStudentViewCourseListService()
+      .then((res) => {
+        if (!isMounted) return
+        if (res.success) {
+          setCourses(res.data)
+        } else {
+          setError("Failed to load courses")
+        }
+      })
+      .catch((err) => {
+        console.error("Fetch error:", err)
+        if (isMounted) setError("Network error")
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false)
+      })
 
-  // Sort courses based on selected option
-  const sortedCourses = [...filteredCourses].sort((a, b) => {
-    switch (sortOption) {
-      case "popular":
-        return b.students - a.students
-      case "rating":
-        return b.rating - a.rating
-      case "newest":
-        return b.id - a.id
-      case "price-low":
-        return Number.parseInt(a.price.replace("$", "")) - Number.parseInt(b.price.replace("$", ""))
-      case "price-high":
-        return Number.parseInt(b.price.replace("$", "")) - Number.parseInt(a.price.replace("$", ""))
-      default:
-        return 0
+    return () => {
+      isMounted = false
     }
-  })
+  }, [])
 
-  // Get unique categories and levels for filters
-  const categories = [...new Set(allCourses.map((course) => course.category))]
-  const levels = [...new Set(allCourses.map((course) => course.level))]
+  // Derive “unique categories” and “unique levels” from fetched `courses`
+  const categories = useMemo(
+    () => [...new Set(courses.map((c) => c.category))],
+    [courses]
+  )
+  const levels = useMemo(
+    () => [...new Set(courses.map((c) => c.level))],
+    [courses]
+  )
+
+  // Filter logic
+  const filteredCourses = useMemo(() => {
+    return courses.filter((course) => {
+      const matchesSearch =
+        course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (course.instructorName || "").toLowerCase().includes(searchTerm.toLowerCase())
+
+      const coursePriceNumber = Number(course.price) || 0
+      const matchesPrice =
+        coursePriceNumber >= priceRange[0] && coursePriceNumber <= priceRange[1]
+
+      const matchesCategory =
+        selectedCategories.length === 0 || selectedCategories.includes(course.category)
+
+      const matchesLevel =
+        selectedLevels.length === 0 || selectedLevels.includes(course.level)
+
+      return matchesSearch && matchesPrice && matchesCategory && matchesLevel
+    })
+  }, [courses, searchTerm, priceRange, selectedCategories, selectedLevels])
+
+  // Sort logic
+  const sortedCourses = useMemo(() => {
+    return [...filteredCourses].sort((a, b) => {
+      switch (sortOption) {
+        case "popular": {
+          const aCount = Array.isArray(a.students) ? a.students.length : 0
+          const bCount = Array.isArray(b.students) ? b.students.length : 0
+          return bCount - aCount
+        }
+        case "rating": {
+          const aRating = Number(a.rating) || 0
+          const bRating = Number(b.rating) || 0
+          return bRating - aRating
+        }
+        case "newest": {
+          const aDate = new Date(a.createdAt).getTime()
+          const bDate = new Date(b.createdAt).getTime()
+          return bDate - aDate
+        }
+        case "price-low": {
+          return Number(a.price) - Number(b.price)
+        }
+        case "price-high": {
+          return Number(b.price) - Number(a.price)
+        }
+        default: {
+          return 0
+        }
+      }
+    })
+  }, [filteredCourses, sortOption])
+
+  // Show “Loading” or “Error” states first
+  if (loading) {
+    return (
+      <main className="container py-12">
+        <p>Loading courses…</p>
+      </main>
+    )
+  }
+  if (error) {
+    return (
+      <main className="container py-12">
+        <p className="text-red-500">{error}</p>
+      </main>
+    )
+  }
 
   return (
     <main className="container py-12">
+      {/* ── Page Title ── */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">All Courses</h1>
-        <p className="mt-2 text-muted-foreground">Browse our collection of courses taught by industry experts</p>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+          All Courses
+        </h1>
+        <p className="mt-2 text-muted-foreground">
+          Browse our collection of courses taught by industry experts
+        </p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
-        {/* Filters Sidebar */}
+        {/* ── Filters Sidebar ── */}
         <div className="space-y-6">
           <div>
             <h3 className="mb-4 text-lg font-medium">Filters</h3>
@@ -186,7 +186,13 @@ export default function CoursesPage() {
           <div>
             <h4 className="mb-2 text-sm font-medium">Price Range</h4>
             <div className="space-y-4">
-              <Slider defaultValue={[0, 100]} max={100} step={1} value={priceRange} onValueChange={setPriceRange} />
+              <Slider
+                defaultValue={[0, 100]}
+                max={100}
+                step={1}
+                value={priceRange}
+                onValueChange={setPriceRange}
+              />
               <div className="flex items-center justify-between">
                 <span className="text-sm">${priceRange[0]}</span>
                 <span className="text-sm">${priceRange[1]}</span>
@@ -206,7 +212,9 @@ export default function CoursesPage() {
                       if (checked) {
                         setSelectedCategories([...selectedCategories, category])
                       } else {
-                        setSelectedCategories(selectedCategories.filter((c) => c !== category))
+                        setSelectedCategories(
+                          selectedCategories.filter((c) => c !== category)
+                        )
                       }
                     }}
                   />
@@ -228,7 +236,9 @@ export default function CoursesPage() {
                       if (checked) {
                         setSelectedLevels([...selectedLevels, level])
                       } else {
-                        setSelectedLevels(selectedLevels.filter((l) => l !== level))
+                        setSelectedLevels(
+                          selectedLevels.filter((l) => l !== level)
+                        )
                       }
                     }}
                   />
@@ -252,12 +262,12 @@ export default function CoursesPage() {
           </Button>
         </div>
 
-        {/* Courses Grid */}
+        {/* ── Courses Grid ── */}
         <div>
           <div className="mb-6 flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
               Showing <span className="font-medium">{sortedCourses.length}</span> of{" "}
-              <span className="font-medium">{allCourses.length}</span> courses
+              <span className="font-medium">{courses.length}</span> courses
             </p>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -305,52 +315,80 @@ export default function CoursesPage() {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {sortedCourses.map((course) => (
-              <Card key={course.id} className="overflow-hidden">
-                <div className="aspect-video w-full overflow-hidden">
-                  <img
-                    src={course.image || "/placeholder.svg"}
-                    alt={course.title}
-                    width={350}
-                    height={200}
-                    className="h-full w-full object-cover transition-transform hover:scale-105"
-                  />
-                </div>
-                <CardHeader className="p-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-muted-foreground">{course.category}</span>
-                    <span className="text-xs font-medium text-muted-foreground">{course.level}</span>
+            {sortedCourses.map((course) => {
+              const enrolledCount = Array.isArray(course.students)
+                ? course.students.length
+                : 0
+              const courseHours = course.hours || 0
+              const ratingValue = course.rating ?? 4.8
+              const imageUrl = course.image?.url || "/placeholder.svg"
+
+              const priceString =
+                typeof course.price === "number"
+                  ? `$${course.price.toFixed(2)}`
+                  : course.price
+
+              return (
+                <Card key={course._id} className="overflow-hidden">
+                  <div className="aspect-video w-full overflow-hidden">
+                    <img
+                      src={imageUrl}
+                      alt={course.title}
+                      width={350}
+                      height={200}
+                      className="h-full w-full object-cover transition-transform hover:scale-105"
+                    />
                   </div>
-                  <CardTitle className="line-clamp-2 text-lg">{course.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0">
-                  <p className="text-sm text-muted-foreground">By {course.instructor}</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <div className="flex items-center">
-                      <Star className="h-4 w-4 fill-primary text-primary" />
-                      <span className="ml-1 text-sm font-medium">{course.rating}</span>
+                  <CardHeader className="p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {course.category}
+                      </span>
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {course.level}
+                      </span>
                     </div>
-                    <span className="text-xs text-muted-foreground">({course.students.toLocaleString()} students)</span>
-                  </div>
-                  <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span>{course.hours} hours</span>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex items-center justify-between p-4 pt-0">
-                  <span className="font-bold">{course.price}</span>
-                  <Button size="sm" variant="outline" asChild>
-                    <Link to={`/courses/${course.id}`}>View Course</Link>
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
+                    <CardTitle className="line-clamp-2 text-lg">
+                      {course.title}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4 pt-0">
+                    <p className="text-sm text-muted-foreground">
+                      By {course.instructorName}
+                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="flex items-center">
+                        <Star className="h-4 w-4 fill-primary text-primary" />
+                        <span className="ml-1 text-sm font-medium">
+                          {ratingValue}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        ({enrolledCount.toLocaleString()} students)
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                      <Clock className="h-3 w-3" />
+                      <span>{courseHours} hours</span>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex items-center justify-between p-4 pt-0">
+                    <span className="font-bold">{priceString}</span>
+                    <Button size="sm" variant="outline" asChild>
+                      <Link to={`/courses/${course._id}`}>View Course</Link>
+                    </Button>
+                  </CardFooter>
+                </Card>
+              )
+            })}
           </div>
 
           {sortedCourses.length === 0 && (
             <div className="mt-12 text-center">
               <h3 className="text-lg font-medium">No courses found</h3>
-              <p className="mt-2 text-muted-foreground">Try adjusting your search or filter criteria</p>
+              <p className="mt-2 text-muted-foreground">
+                Try adjusting your filters
+              </p>
             </div>
           )}
         </div>
