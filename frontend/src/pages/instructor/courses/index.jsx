@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
     DropdownMenu,
@@ -23,75 +23,62 @@ import {
 import { Button } from "@/components/ui/button"
 import { InstructorSidebar } from "@/components/instructor-sidebar"
 import { AddCourseDialog } from "@/components/instructor/add-course-dialog"
+import { fetchInstructorCourseListService } from "@/services/instructorService"
 
 function InstructorCoursesPage() {
     const navigate = useNavigate()
     const [isAddCourseOpen, setIsAddCourseOpen] = useState(false)
+    const [courses, setCourses] = useState([])
+    const [loading, setLoading] = useState(true)
+    const [error, setError] = useState(null)
 
-    // Mock data for instructor courses
-    const courses = [
-        {
-            id: 1,
-            title: "Web Development Bootcamp",
-            students: 542,
-            revenue: "$5,420",
-            rating: 4.9,
-            published: true,
-            lastUpdated: "2023-05-10",
-            image: "/placeholder.svg?height=200&width=350",
-        },
-        {
-            id: 2,
-            title: "JavaScript Advanced Concepts",
-            students: 328,
-            revenue: "$3,280",
-            rating: 4.7,
-            published: true,
-            lastUpdated: "2023-04-15",
-            image: "/placeholder.svg?height=200&width=350",
-        },
-        {
-            id: 4,
-            title: "Node.js Masterclass",
-            students: 160,
-            revenue: "$1,600",
-            rating: 4.6,
-            published: true,
-            lastUpdated: "2023-02-18",
-            image: "/placeholder.svg?height=200&width=350",
-        },
-        {
-            id: 5,
-            title: "TypeScript Fundamentals",
-            students: 0,
-            revenue: "$0",
-            rating: 0,
-            published: false,
-            lastUpdated: "2023-05-01",
-            image: "/placeholder.svg?height=200&width=350",
-        },
-    ]
+    useEffect(() => {
+        let isMounted = true
+
+        async function loadCourses() {
+            setLoading(true)
+            setError(null)
+            try {
+                const result = await fetchInstructorCourseListService()
+                if (result.success) {
+                    if (isMounted) setCourses(result.data)
+                } else {
+                    if (isMounted) setError("Failed to load courses")
+                }
+            } catch (err) {
+                console.error("Error fetching courses:", err)
+                if (isMounted) setError("Network error")
+            } finally {
+                if (isMounted) setLoading(false)
+            }
+        }
+
+        loadCourses()
+        return () => {
+            isMounted = false
+        }
+    }, [])
 
     return (
         <div className="flex min-h-screen flex-col">
             <div className="flex flex-1">
                 <InstructorSidebar />
                 <div className="container py-8">
+                    {loading && <p>Loading…</p>}
+                    {error && <p className="text-red-500">{error}</p>}
+
                     <div className='mb-6'>
                         <h1 className="text-3xl font-bold tracking-tight">All Courses</h1>
                         <p className="text-muted-foreground">Manage your courses</p>
                     </div>
                     <div className='space-y-6'>
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-end">
-
                             <div className="flex items-center">
                                 <Button onClick={() => setIsAddCourseOpen(true)}>
                                     <Plus className="mr-2 h-4 w-4" /> Add Course
 
                                 </Button>
-
                             </div>
-
                         </div>
 
                         <Table>
@@ -100,45 +87,47 @@ function InstructorCoursesPage() {
                                     <TableHead>Title</TableHead>
                                     <TableHead>Enrolled</TableHead>
                                     <TableHead>Revenue</TableHead>
-                                    <TableHead>Rating</TableHead>
-                                    <TableHead>Last Updated</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {courses.map((course) => (
-                                    <TableRow key={course.id}>
-                                        <TableCell className="font-medium">{course.title}</TableCell>
-                                        <TableCell>{course.students}</TableCell>
-                                        <TableCell>{course.revenue}</TableCell>
-                                        <TableCell>
-                                            <div className="flex items-center gap-1">
-                                                <Star
-                                                    className={`h-4 w-4 ${course.rating > 0 ? "fill-primary text-primary" : "text-muted-foreground"
-                                                        }`}
-                                                />
-                                                <span>{course.rating > 0 ? course.rating : "N/A"}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>{course.lastUpdated}</TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button variant="ghost" size="icon">
-                                                        <ChevronDown className="h-4 w-4" />
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <DropdownMenuItem onClick={() => navigate(`/instructor/courses/${course.id}/edit`)}>
-                                                        Edit
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {!loading && !error && courses.length === 0 && (
+                                    <p>You don’t have any courses yet.</p>
+                                )}
+                                {!loading && !error && courses.length > 0 && (
+                                    
+                                        courses.map((course) => {
+                                            const enrolledCount = Array.isArray(course.students)
+                                            ? course.students.length
+                                            : 0
+                                        
+                                          // calculate revenue based on price and enrolled count
+                                          const priceNumber = Number(course.price) || 0
+                                          const revenue = priceNumber * enrolledCount
+                                            return (
+                                            <TableRow key={course._id}>
+                                                <TableCell className="font-medium">{course.title}</TableCell>
+                                                <TableCell>{enrolledCount}</TableCell>
+                                                <TableCell>${revenue.toFixed(1)}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon">
+                                                                <ChevronDown className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => navigate(`/instructor/courses/${course.id}/edit`)}>
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        )})
+                                    )}
                             </TableBody>
                         </Table>
                     </div>
