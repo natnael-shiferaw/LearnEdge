@@ -1,5 +1,3 @@
-// src/pages/courses/[id]/index.jsx
-
 import { useState, useEffect, useMemo, useContext } from "react"
 import { Link, useParams, useNavigate } from "react-router-dom"
 import {

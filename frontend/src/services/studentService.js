@@ -10,6 +10,14 @@ export async function fetchStudentViewCourseDetailsService(courseId) {
     return data;
 }
 
+export async function checkCoursePurchaseInfoService(courseId, studentId) {
+    const { data } = await axiosInstance.get(
+        `/student/course/purchase-info/${courseId}/${studentId}`
+    );
+
+    return data;
+}
+
 export async function fetchStudentBoughtCoursesService(studentId) {
     const { data } = await axiosInstance.get(
         `/student/courses-bought/get/${studentId}`

@@ -1,7 +1,5 @@
-// src/pages/CoursesPage.jsx
-
-import { useState, useEffect, useMemo } from "react"
-import { Link } from "react-router-dom"
+import { useState, useEffect, useMemo, useContext } from "react"
+import { useNavigate } from "react-router-dom"
 import {
   ArrowUpDown,
   ChevronDown,
@@ -30,22 +28,31 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 
+import { AuthContext } from "@/context/auth-context"
 import {
   fetchStudentViewCourseListService,
+  checkCoursePurchaseInfoService,
 } from "@/services/studentService"
 
 export default function CoursesPage() {
+  const navigate = useNavigate()
+  const { auth } = useContext(AuthContext)
+  const userId = auth?.user?._id
+
   // State for fetched courses, loading, and any error
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  //Filters & sort state
+  // Filters & sort state
   const [searchTerm, setSearchTerm] = useState("")
   const [priceRange, setPriceRange] = useState([0, 100])
   const [selectedCategories, setSelectedCategories] = useState([])
   const [selectedLevels, setSelectedLevels] = useState([])
   const [sortOption, setSortOption] = useState("popular")
+
+  // Track which course‐IDs are currently being “checked” for purchase
+  const [checkingMap, setCheckingMap] = useState({})
 
   // Fetch from backend on mount
   useEffect(() => {
@@ -90,19 +97,25 @@ export default function CoursesPage() {
     return courses.filter((course) => {
       const matchesSearch =
         course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (course.instructorName || "").toLowerCase().includes(searchTerm.toLowerCase())
+        (course.instructorName || "")
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase())
 
+      // Convert price to number before comparing
       const coursePriceNumber = Number(course.price) || 0
       const matchesPrice =
         coursePriceNumber >= priceRange[0] && coursePriceNumber <= priceRange[1]
 
       const matchesCategory =
-        selectedCategories.length === 0 || selectedCategories.includes(course.category)
+        selectedCategories.length === 0 ||
+        selectedCategories.includes(course.category)
 
       const matchesLevel =
         selectedLevels.length === 0 || selectedLevels.includes(course.level)
 
-      return matchesSearch && matchesPrice && matchesCategory && matchesLevel
+      return (
+        matchesSearch && matchesPrice && matchesCategory && matchesLevel
+      )
     })
   }, [courses, searchTerm, priceRange, selectedCategories, selectedLevels])
 
@@ -111,16 +124,19 @@ export default function CoursesPage() {
     return [...filteredCourses].sort((a, b) => {
       switch (sortOption) {
         case "popular": {
+          // “popular” = most students enrolled → length of students array
           const aCount = Array.isArray(a.students) ? a.students.length : 0
           const bCount = Array.isArray(b.students) ? b.students.length : 0
           return bCount - aCount
         }
         case "rating": {
+          // If you have a rating field in your Course schema
           const aRating = Number(a.rating) || 0
           const bRating = Number(b.rating) || 0
           return bRating - aRating
         }
         case "newest": {
+          // If you have a createdAt timestamp
           const aDate = new Date(a.createdAt).getTime()
           const bDate = new Date(b.createdAt).getTime()
           return bDate - aDate
@@ -138,7 +154,7 @@ export default function CoursesPage() {
     })
   }, [filteredCourses, sortOption])
 
-  // ── 8) Helper: convert "MM:SS" (or "H:MM:SS") strings into total seconds
+  // Helper: convert "MM:SS" (or "H:MM:SS") strings into total seconds
   function parseDurationToSeconds(durationStr) {
     // e.g. "5:23" → [ "5", "23" ] or "1:05:23" → [ "1", "05", "23" ]
     const parts = durationStr.split(":").map((p) => Number(p))
@@ -150,6 +166,38 @@ export default function CoursesPage() {
       return parts[0] * 3600 + parts[1] * 60 + parts[2]
     }
     return 0
+  }
+
+  // Called when a student clicks “View Course”
+  const handleViewCourse = async (courseId) => {
+    if (!userId) {
+      // If not logged in for some reason, fallback to course detail
+      navigate(`/courses/${courseId}`)
+      return
+    }
+
+    // Mark this ID as “checking” so we can disable its button/spinner
+    setCheckingMap((prev) => ({ ...prev, [courseId]: true }))
+    try {
+      const res = await checkCoursePurchaseInfoService(courseId, userId)
+      if (res.success) {
+        if (res.data === true) {
+          // Student already bought → send to progress
+          navigate(`/student/my-courses/course-progress/${courseId}`)
+        } else {
+          // Not purchased → send to course detail
+          navigate(`/courses/${courseId}`)
+        }
+      } else {
+        // On API error, just default to detail page
+        navigate(`/courses/${courseId}`)
+      }
+    } catch (e) {
+      console.error("Purchase‐check error:", e)
+      navigate(`/courses/${courseId}`)
+    } finally {
+      setCheckingMap((prev) => ({ ...prev, [courseId]: false }))
+    }
   }
 
   // Show “Loading” or “Error” states first
@@ -280,7 +328,8 @@ export default function CoursesPage() {
         <div>
           <div className="mb-6 flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              Showing <span className="font-medium">{sortedCourses.length}</span> of{" "}
+              Showing{" "}
+              <span className="font-medium">{sortedCourses.length}</span> of{" "}
               <span className="font-medium">{courses.length}</span> courses
             </p>
             <DropdownMenu>
@@ -337,21 +386,18 @@ export default function CoursesPage() {
                   totalSeconds += parseDurationToSeconds(lec.duration || "0:00")
                 })
               })
-              // Convert to hours (decimal)
+              // Convert to hours (decimal), then round to one decimal
               const hoursDecimal = totalSeconds / 3600
-              // Round to one decimal place
               const courseHours = hoursDecimal.toFixed(1)
               const enrolledCount = Array.isArray(course.students)
                 ? course.students.length
                 : 0
-
-              const ratingValue = course.rating ?? 4.8
+              const ratingValue = course.rating ?? 0
               const imageUrl = course.image?.url || "/placeholder.svg"
-
               const priceString =
                 typeof course.price === "number"
                   ? `$${course.price.toFixed(2)}`
-                  : course.price
+                  : course.price || "Free"
 
               return (
                 <Card key={course._id} className="overflow-hidden">
@@ -399,8 +445,15 @@ export default function CoursesPage() {
                   </CardContent>
                   <CardFooter className="flex items-center justify-between p-4 pt-0">
                     <span className="font-bold">{priceString}</span>
-                    <Button size="sm" variant="outline" asChild>
-                      <Link to={`/courses/${course._id}`}>View Course</Link>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleViewCourse(course._id)}
+                      disabled={!!checkingMap[course._id]}
+                    >
+                      {checkingMap[course._id]
+                        ? "Checking…"
+                        : "View Course"}
                     </Button>
                   </CardFooter>
                 </Card>
