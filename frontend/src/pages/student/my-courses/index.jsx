@@ -1,9 +1,15 @@
-import { useState } from "react"
-import {Link} from "react-router-dom"
-import { BookOpen, Clock, Filter, Search, SortAsc } from "lucide-react"
+import { useState, useEffect, useContext, useMemo } from "react"
+import { Link } from "react-router-dom"
+import { BookOpen, Clock, Search, SortAsc } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import {
@@ -18,107 +24,67 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardSidebar } from "@/components/dashboard-sidebar"
 
+import { AuthContext } from "@/context/auth-context"
+import { fetchStudentBoughtCoursesService } from "@/services/studentService"
+
 export default function MyCoursesPage() {
+  const { auth } = useContext(AuthContext)
+  const studentId = auth?.user?._id
+
   const [searchQuery, setSearchQuery] = useState("")
-  const [filter, setFilter] = useState("all")
   const [sort, setSort] = useState("recent")
+  const [boughtCourses, setBoughtCourses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  // Mock data for enrolled courses
-  const enrolledCourses = [
-    {
-      id: 1,
-      title: "Web Development Bootcamp",
-      instructor: "Sarah Johnson",
-      progress: 65,
-      image: "/placeholder.svg?height=200&width=350",
-      lastLesson: "CSS Flexbox and Grid",
-      category: "Development",
-      lastAccessed: "2023-05-15",
-      totalLectures: 42,
-      completedLectures: 27,
-    },
-    {
-      id: 2,
-      title: "Data Science Fundamentals",
-      instructor: "Michael Chen",
-      progress: 32,
-      image: "/placeholder.svg?height=200&width=350",
-      lastLesson: "Introduction to Python",
-      category: "Data Science",
-      lastAccessed: "2023-05-14",
-      totalLectures: 38,
-      completedLectures: 12,
-    },
-    {
-      id: 3,
-      title: "UX/UI Design Masterclass",
-      instructor: "Emma Rodriguez",
-      progress: 18,
-      image: "/placeholder.svg?height=200&width=350",
-      lastLesson: "User Research Methods",
-      category: "Design",
-      lastAccessed: "2023-05-10",
-      totalLectures: 35,
-      completedLectures: 6,
-    },
-    {
-      id: 4,
-      title: "Machine Learning A-Z",
-      instructor: "David Kim",
-      progress: 92,
-      image: "/placeholder.svg?height=200&width=350",
-      lastLesson: "Neural Networks Advanced",
-      category: "Data Science",
-      lastAccessed: "2023-05-16",
-      totalLectures: 45,
-      completedLectures: 41,
-    },
-    {
-      id: 5,
-      title: "JavaScript Advanced Concepts",
-      instructor: "Sarah Johnson",
-      progress: 45,
-      image: "/placeholder.svg?height=200&width=350",
-      lastLesson: "Closures and Prototypes",
-      category: "Development",
-      lastAccessed: "2023-05-12",
-      totalLectures: 28,
-      completedLectures: 13,
-    },
-    {
-      id: 6,
-      title: "Digital Marketing Masterclass",
-      instructor: "Jessica Lee",
-      progress: 100,
-      image: "/placeholder.svg?height=200&width=350",
-      lastLesson: "Campaign Analysis",
-      category: "Marketing",
-      lastAccessed: "2023-05-01",
-      totalLectures: 32,
-      completedLectures: 32,
-    },
-  ]
+  useEffect(() => {
+    if (!studentId) return
 
-  // Filter and sort courses
-  const filteredCourses = enrolledCourses
-    .filter((course) => {
-      // Apply search filter
-      if (searchQuery && !course.title.toLowerCase().includes(searchQuery.toLowerCase())) {
-        return false
-      }
+    setLoading(true)
+    setError(null)
 
-      // Apply category filter
-      if (filter !== "all" && course.category.toLowerCase() !== filter) {
-        return false
-      }
+    fetchStudentBoughtCoursesService(studentId)
+      .then((res) => {
+        if (res.success && Array.isArray(res.data)) {
+          const mapped = res.data.map((c) => ({
+            id: c.courseId,
+            title: c.title,
+            instructor: c.instructorName,
+            image: c.courseImage?.url || "/placeholder.svg",
+            progress: 0,
+            lastLesson: "",
+            lastAccessed: c.dateOfPurchase || new Date().toISOString(),
+            totalLectures: 0,
+            completedLectures: 0,
+          }))
+          setBoughtCourses(mapped)
+        } else {
+          setError("Failed to load your courses")
+        }
+      })
+      .catch((err) => {
+        console.error("Fetch error:", err)
+        setError("Network error while fetching your courses")
+      })
+      .finally(() => {
+        setLoading(false)
+      })
+  }, [studentId])
 
-      return true
-    })
-    .sort((a, b) => {
-      // Apply sorting
+  const filteredCourses = useMemo(() => {
+    let result = [...boughtCourses]
+
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      result = result.filter((course) =>
+        course.title.toLowerCase().includes(q)
+      )
+    }
+
+    result.sort((a, b) => {
       switch (sort) {
         case "recent":
-          return new Date(b.lastAccessed).getTime() - new Date(a.lastAccessed).getTime()
+          return new Date(b.lastAccessed) - new Date(a.lastAccessed)
         case "progress":
           return b.progress - a.progress
         case "title":
@@ -127,6 +93,25 @@ export default function MyCoursesPage() {
           return 0
       }
     })
+
+    return result
+  }, [boughtCourses, searchQuery, sort])
+
+  if (loading) {
+    return (
+      <main className="container py-12">
+        <p>Loading your courses…</p>
+      </main>
+    )
+  }
+
+  if (error) {
+    return (
+      <main className="container py-12">
+        <p className="text-red-500">{error}</p>
+      </main>
+    )
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -153,25 +138,6 @@ export default function MyCoursesPage() {
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="icon">
-                      <Filter className="h-4 w-4" />
-                      <span className="sr-only">Filter</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Filter by Category</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem onClick={() => setFilter("all")}>All Categories</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setFilter("development")}>Development</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setFilter("data science")}>Data Science</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setFilter("design")}>Design</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setFilter("marketing")}>Marketing</DropdownMenuItem>
-                    </DropdownMenuGroup>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon">
                       <SortAsc className="h-4 w-4" />
                       <span className="sr-only">Sort</span>
                     </Button>
@@ -180,9 +146,15 @@ export default function MyCoursesPage() {
                     <DropdownMenuLabel>Sort by</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      <DropdownMenuItem onClick={() => setSort("recent")}>Recently Accessed</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setSort("progress")}>Progress</DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setSort("title")}>Title</DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSort("recent")}>
+                        Recently Accessed
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSort("progress")}>
+                        Progress
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setSort("title")}>
+                        Title
+                      </DropdownMenuItem>
                     </DropdownMenuGroup>
                   </DropdownMenuContent>
                 </DropdownMenu>
@@ -202,10 +174,8 @@ export default function MyCoursesPage() {
                     <Card key={course.id} className="overflow-hidden">
                       <div className="aspect-video w-full overflow-hidden">
                         <img
-                          src={course.image || "/placeholder.svg"}
+                          src={course.image}
                           alt={course.title}
-                          width={350}
-                          height={200}
                           className="h-full w-full object-cover transition-transform hover:scale-105"
                         />
                       </div>
@@ -221,9 +191,7 @@ export default function MyCoursesPage() {
                         <Progress value={course.progress} className="h-2" />
                         <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
                           <BookOpen className="h-3.5 w-3.5" />
-                          <span>
-                            {course.completedLectures}/{course.totalLectures} lectures completed
-                          </span>
+                          <span>{course.completedLectures}/{course.totalLectures} lectures completed</span>
                         </div>
                         <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                           <Clock className="h-3.5 w-3.5" />
@@ -246,14 +214,12 @@ export default function MyCoursesPage() {
               <TabsContent value="list">
                 <div className="space-y-4">
                   {filteredCourses.map((course) => (
-                    <Card key={course.id} className="overflow-hidden">
+                    <Card key={course.id}>
                       <div className="flex flex-col gap-4 p-4 sm:flex-row">
                         <div className="aspect-video h-32 w-full overflow-hidden rounded-md sm:h-auto sm:w-48">
                           <img
-                            src={course.image || "/placeholder.svg"}
+                            src={course.image}
                             alt={course.title}
-                            width={192}
-                            height={108}
                             className="h-full w-full object-cover"
                           />
                         </div>
@@ -268,19 +234,17 @@ export default function MyCoursesPage() {
                             <Progress value={course.progress} className="h-2" />
                           </div>
                           <div className="mt-auto flex flex-col gap-2 pt-4 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <BookOpen className="h-3.5 w-3.5" />
-                                <span>
-                                  {course.completedLectures}/{course.totalLectures} lectures completed
-                                </span>
-                              </div>
-                              <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                                <Clock className="h-3.5 w-3.5" />
-                                <span>Last accessed: {new Date(course.lastAccessed).toLocaleDateString()}</span>
-                              </div>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <BookOpen className="h-3.5 w-3.5" />
+                              <span>{course.completedLectures}/{course.totalLectures} lectures completed</span>
                             </div>
-                            <Button size="sm" asChild>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <Clock className="h-3.5 w-3.5" />
+                              <span>Last accessed: {new Date(course.lastAccessed).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                          <div className="mt-4">
+                            <Button className="w-full sm:w-auto" asChild>
                               <Link to={`/student/my-courses/course-progress/${course.id}`}>
                                 {course.progress === 100 ? "Review Course" : "Continue Learning"}
                               </Link>
@@ -293,23 +257,6 @@ export default function MyCoursesPage() {
                 </div>
               </TabsContent>
             </Tabs>
-
-            {filteredCourses.length === 0 && (
-              <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed p-8 text-center">
-                <BookOpen className="mb-4 h-12 w-12 text-muted-foreground" />
-                <h3 className="text-lg font-medium">No courses found</h3>
-                <p className="mt-2 text-muted-foreground">
-                  {searchQuery || filter !== "all"
-                    ? "Try adjusting your search or filter criteria"
-                    : "You haven't enrolled in any courses yet"}
-                </p>
-                {!searchQuery && filter === "all" && (
-                  <Button className="mt-4" asChild>
-                    <Link to="/courses">Browse Courses</Link>
-                  </Button>
-                )}
-              </div>
-            )}
           </div>
         </main>
       </div>

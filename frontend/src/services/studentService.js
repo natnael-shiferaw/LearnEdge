@@ -9,3 +9,11 @@ export async function fetchStudentViewCourseDetailsService(courseId) {
     const { data } = await axiosInstance.get(`/student/course/get/details/${courseId}`);
     return data;
 }
+
+export async function fetchStudentBoughtCoursesService(studentId) {
+    const { data } = await axiosInstance.get(
+        `/student/courses-bought/get/${studentId}`
+    );
+
+    return data;
+}
