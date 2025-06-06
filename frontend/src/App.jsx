@@ -19,6 +19,8 @@ import CourseDetailPage from "./pages/courses/[id]"
 import CategoriesPage from "./pages/categories"
 import MyCoursesPage from "./pages/student/my-courses"
 import CourseProgressPage from "./pages/student/my-courses/course-progress/[id]"
+import PaymentReturnPage from "./pages/student/payment-return"
+import { ToastViewport } from "@/components/ui/toast"
 
 function App() {
   const { auth } = useContext(AuthContext)
@@ -76,6 +78,9 @@ function App() {
             />
           }
         />
+        {/* payment Route */}
+        <Route path="/payment-return" element={<PaymentReturnPage />} />
+  
         <Route
           path="/instructor/courses/:id/edit"
           element={
@@ -90,6 +95,8 @@ function App() {
         <Route path="*" element={<NotFoundPage />}></Route>
       </Routes>
       <Footer />
+
+      <ToastViewport />
     </>
   )
 }

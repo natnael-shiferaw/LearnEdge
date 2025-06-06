@@ -1,4 +1,6 @@
-import { useState } from "react"
+// src/pages/courses/[id]/index.jsx
+
+import { useState, useEffect, useMemo, useContext } from "react"
 import { Link, useParams, useNavigate } from "react-router-dom"
 import {
   Award,
@@ -9,147 +11,189 @@ import {
   Globe,
   Info,
   Play,
-  Share2,
   ShoppingCart,
   Star,
   Users,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "@/hooks/use-toast"
+
+import {
+  fetchStudentViewCourseDetailsService,
+  fetchStudentViewCourseListService,
+} from "@/services/studentService"
+import { AuthContext } from "@/context/auth-context"
+import { createPaymentService } from "@/services/paymentService"
 
 export default function CourseDetailPage() {
   const navigate = useNavigate()
+  const {auth} = useContext(AuthContext)
   const { id: courseId } = useParams()
-  const [isPurchased, setIsPurchased] = useState(false)
 
-  // Mock course data
-  const course = {
-    id: courseId,
-    title: "Web Development Bootcamp",
-    instructor: "Sarah Johnson",
-    rating: 4.8,
-    students: 12453,
-    hours: 42,
-    level: "Beginner",
-    image: "/placeholder.svg?height=400&width=800",
-    price: "$89.99",
-    category: "Development",
-    lastUpdated: "May 2023",
-    language: "English",
-    description: `This comprehensive Web Development Bootcamp covers everything you need to know to become a full-stack web developer. You'll learn HTML, CSS, JavaScript, React, Node.js, Express, MongoDB, and more.
-    
-    Whether you're a complete beginner or have some experience, this course will take you from the basics to advanced concepts in web development. By the end, you'll be able to build complete, responsive websites and web applications from scratch.`,
-    whatYouWillLearn: [
-      "Build responsive websites using HTML, CSS, and JavaScript",
-      "Create dynamic web applications with React",
-      "Develop backend APIs with Node.js and Express",
-      "Work with databases like MongoDB",
-      "Deploy your applications to the web",
-      "Implement authentication and authorization",
-      "Use modern development tools and workflows",
-      "Apply best practices for web development",
-    ],
-    requirements: [
-      "A computer with internet access",
-      "No prior programming experience required",
-      "Basic computer skills",
-      "Willingness to learn and practice",
-    ],
-    curriculum: [
-      {
-        id: 1,
-        title: "Introduction to Web Development",
-        lectures: [
-          { id: 1, title: "Course Overview", duration: "10:15", isPreview: true },
-          { id: 2, title: "How the Web Works", duration: "15:30", isPreview: true },
-          { id: 3, title: "Setting Up Your Development Environment", duration: "20:45", isPreview: false },
-        ],
-      },
-      {
-        id: 2,
-        title: "HTML Fundamentals",
-        lectures: [
-          { id: 4, title: "HTML Document Structure", duration: "18:20", isPreview: false },
-          { id: 5, title: "HTML Elements and Attributes", duration: "25:10", isPreview: false },
-          { id: 6, title: "Forms and Input Elements", duration: "22:35", isPreview: false },
-          { id: 7, title: "Semantic HTML", duration: "19:45", isPreview: false },
-        ],
-      },
-      {
-        id: 3,
-        title: "CSS Styling",
-        lectures: [
-          { id: 8, title: "CSS Selectors and Properties", duration: "24:15", isPreview: false },
-          { id: 9, title: "Box Model and Layout", duration: "28:30", isPreview: false },
-          { id: 10, title: "Flexbox and Grid", duration: "32:20", isPreview: false },
-          { id: 11, title: "Responsive Design", duration: "26:45", isPreview: false },
-          { id: 12, title: "CSS Animations and Transitions", duration: "22:10", isPreview: false },
-        ],
-      },
-      {
-        id: 4,
-        title: "JavaScript Basics",
-        lectures: [
-          { id: 13, title: "Variables and Data Types", duration: "20:30", isPreview: false },
-          { id: 14, title: "Operators and Expressions", duration: "18:45", isPreview: false },
-          { id: 15, title: "Control Flow", duration: "25:15", isPreview: false },
-          { id: 16, title: "Functions", duration: "30:20", isPreview: false },
-          { id: 17, title: "Arrays and Objects", duration: "28:10", isPreview: false },
-        ],
-      },
-      {
-        id: 5,
-        title: "DOM Manipulation",
-        lectures: [
-          { id: 18, title: "Selecting DOM Elements", duration: "22:45", isPreview: false },
-          { id: 19, title: "Modifying DOM Elements", duration: "24:30", isPreview: false },
-          { id: 20, title: "Event Handling", duration: "26:15", isPreview: false },
-          { id: 21, title: "Creating and Removing Elements", duration: "20:40", isPreview: false },
-        ],
-      },
-    ],
+  // State for single-course details, all courses, loading, and error
+  const [course, setCourse] = useState(null)
+  const [allCourses, setAllCourses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  // Purchase/enroll state
+  const [isPurchased, setIsPurchased] = useState(false)
+  const [approvalUrl, setApprovalUrl] = useState('')
+  // const [paymentId, setPaymentId] = useState(null)
+
+  // Fetch single course details AND all courses on mount
+  useEffect(() => {
+    let isMounted = true
+    setLoading(true)
+    setError(null)
+
+    // Fetch current course
+    fetchStudentViewCourseDetailsService(courseId)
+      .then((res) => {
+        if (!isMounted) return
+        if (res.success) {
+          setCourse(res.data)
+        } else {
+          setError("Failed to load course details")
+        }
+      })
+      .catch((err) => {
+        console.error("Fetch error:", err)
+        if (isMounted) setError("Network error")
+      })
+
+    // Fetch all courses for "Related Courses"
+    fetchStudentViewCourseListService()
+      .then((res) => {
+        if (!isMounted) return
+        if (res.success) {
+          setAllCourses(res.data)
+        }
+      })
+      .catch((err) => {
+        console.error("Fetch all courses error:", err)
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [courseId])
+
+  // Compute "Related Courses" (same category, exclude current)
+  const relatedCourses = useMemo(() => {
+    if (!course) return []
+    return allCourses
+      .filter(
+        (c) =>
+          c.category === course.category && String(c._id) !== String(course._id)
+      )
+      .slice(0, 4)
+  }, [allCourses, course])
+
+  // Early return for loading or error
+  if (loading) {
+    return (
+      <main className="container py-12">
+        <p>Loading course details…</p>
+      </main>
+    )
+  }
+  if (error) {
+    return (
+      <main className="container py-12">
+        <p className="text-red-500">{error}</p>
+      </main>
+    )
+  }
+  if (!course) {
+    return null
   }
 
-  const handlePurchase = () => {
-    toast({
-      title: "Course purchased successfully!",
-      description: "You now have access to all course content.",
-      duration: 5000,
+  // Calculate total lectures and total duration
+  const totalLectures = course.curriculum.reduce(
+    (sum, section) => sum + section.lectures.length,
+    0
+  )
+
+  let totalSeconds = 0
+  course.curriculum.forEach((section) => {
+    section.lectures.forEach((lec) => {
+      totalSeconds += parseDurationToSeconds(lec.duration || "0:00")
     })
-    setIsPurchased(true)
+  })
+  const totalHours = Math.floor(totalSeconds / 3600)
+  const totalMinutes = Math.round((totalSeconds % 3600) / 60)
+
+  // Find first preview lecture's videoUrl (if any)
+  const previewLecture = course.curriculum
+    .flatMap((section) => section.lectures)
+    .find((lec) => lec.isPreview && lec.videoUrl)
+  const previewUrl = previewLecture ? previewLecture.videoUrl : null
+
+  // Button handlers
+  const handlePurchase = async () => {
+    const PaymentPayload = {
+      userId : auth?.user?._id,
+      userName : auth?.user?.username,
+      userEmail : auth?.user?.email,
+      orderStatus : 'pending',
+      paymentMethod : 'paypal',
+      paymentStatus : 'initiated',
+      orderDate : new Date(),
+      paymentId : '',
+      payerId : '',
+      instructorId : course?.instructorId,
+      instructorName : course?.instructorName,
+      courseImage : course?.image,
+      courseTitle : course?.title,
+      courseId : course?._id,
+      coursePricing : course?.price,
+    }
+    console.log(PaymentPayload);
+    const response = await createPaymentService(PaymentPayload);
+    if (response.success) {
+      sessionStorage.setItem('currentOrderId', JSON.stringify(response?.data?.orderId))
+      setApprovalUrl(response?.data?.approvalUrl);
+      // Only redirect to PayPal once:
+      window.location.href = response.data.approveUrl
+    } else {
+      toast({ title: "Payment error", description: response.message, variant: "destructive" })
+    }
+
+    setIsPurchased(true);
+  }
+
+  if(approvalUrl !== '') {
+    console.log(approvalUrl)
   }
 
   const handleEnroll = () => {
-    navigate(`/dashboard/courses/${courseId}`)
+    navigate(`/student/my-courses/course-progress/${courseId}`)
   }
-
-  const totalLectures = course.curriculum.reduce((total, section) => total + section.lectures.length, 0)
-
-  // Calculate total course duration
-  const totalDuration = course.curriculum.reduce((total, section) => {
-    return (
-      total +
-      section.lectures.reduce((sectionTotal, lecture) => {
-        const [minutes, seconds] = lecture.duration.split(":").map(Number)
-        return sectionTotal + minutes + seconds / 60
-      }, 0)
-    )
-  }, 0)
-
-  const totalHours = Math.floor(totalDuration / 60)
-  const totalMinutes = Math.round(totalDuration % 60)
 
   return (
     <>
       <main className="flex-1">
-        {/* Course Header */}
+        {/* ── Course Header ── */}
         <section className="bg-muted/50">
           <div className="container py-8 md:py-12">
             <div className="grid gap-8 md:grid-cols-2">
@@ -158,8 +202,12 @@ export default function CourseDetailPage() {
                   <Badge variant="outline">{course.category}</Badge>
                   <Badge variant="outline">{course.level}</Badge>
                 </div>
-                <h1 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">{course.title}</h1>
-                <p className="mb-6 text-lg text-muted-foreground">{course.description.split("\n\n")[0]}</p>
+                <h1 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">
+                  {course.title}
+                </h1>
+                <p className="mb-6 text-lg text-muted-foreground">
+                  {course.description.split("\n\n")[0]}
+                </p>
 
                 <div className="mb-6 flex flex-wrap items-center gap-4">
                   <div className="flex items-center">
@@ -167,17 +215,25 @@ export default function CourseDetailPage() {
                       {[1, 2, 3, 4, 5].map((star) => (
                         <Star
                           key={star}
-                          className={`h-4 w-4 ${star <= Math.round(course.rating) ? "fill-primary text-primary" : "text-muted-foreground"}`}
+                          className={`h-4 w-4 ${
+                            star <= Math.round(course.rating)
+                              ? "fill-primary text-primary"
+                              : "text-muted-foreground"
+                          }`}
                         />
                       ))}
                     </div>
                     <span className="ml-2 font-medium">{course.rating}</span>
-                    <span className="ml-1 text-muted-foreground">({course.students.toLocaleString()} students)</span>
+                    <span className="ml-1 text-muted-foreground">
+                      ({(course.students || []).length.toLocaleString()} students)
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-1">
                     <Clock className="h-4 w-4 text-muted-foreground" />
-                    <span>{course.hours} hours</span>
+                    <span>
+                      {totalHours}h {totalMinutes}m
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-1">
@@ -193,9 +249,18 @@ export default function CourseDetailPage() {
 
                 <div className="mb-6">
                   <p className="text-sm text-muted-foreground">
-                    Created by <span className="font-medium text-foreground">{course.instructor}</span>
+                    Created by{" "}
+                    <span className="font-medium text-foreground">
+                      {course.instructorName}
+                    </span>
                   </p>
-                  <p className="text-sm text-muted-foreground">Last updated {course.lastUpdated}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Last updated{" "}
+                    {new Date(course.createdAt).toLocaleDateString(undefined, {
+                      month: "long",
+                      year: "numeric",
+                    })}
+                  </p>
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row">
@@ -208,38 +273,38 @@ export default function CourseDetailPage() {
                       <ShoppingCart className="mr-2 h-4 w-4" /> Purchase Course
                     </Button>
                   )}
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button size="lg" variant="outline">
-                          <Share2 className="mr-2 h-4 w-4" /> Share
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Share this course with friends</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
                 </div>
               </div>
 
               <div className="relative aspect-video overflow-hidden rounded-lg border shadow-md">
                 <img
-                  src={course.image || "/placeholder.svg"}
+                  src={course.image?.url || "/placeholder.svg"}
                   alt={course.title}
                   className="object-cover h-full w-full"
                 />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Button size="icon" className="h-16 w-16 rounded-full">
-                    <Play className="h-8 w-8" />
-                  </Button>
-                </div>
+                {previewUrl && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Button
+                      size="icon"
+                      className="h-16 w-16 rounded-full bg-background/75 hover:bg-background"
+                      asChild
+                    >
+                      <a
+                        href={previewUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Play className="h-8 w-8" />
+                      </a>
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </section>
 
-        {/* Course Content */}
+        {/* ── Course Content ── */}
         <section className="container py-12">
           <div className="grid gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
@@ -248,45 +313,41 @@ export default function CourseDetailPage() {
                   <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="curriculum">Curriculum</TabsTrigger>
                   <TabsTrigger value="instructor">Instructor</TabsTrigger>
-                  <TabsTrigger value="reviews">Reviews</TabsTrigger>
                 </TabsList>
 
-                {/* Overview Tab */}
+                {/* ── Overview Tab ── */}
                 <TabsContent value="overview" className="mt-6">
                   <div className="space-y-8">
                     <div>
-                      <h2 className="mb-4 text-2xl font-bold">About This Course</h2>
+                      <h2 className="mb-4 text-2xl font-bold">
+                        About This Course
+                      </h2>
                       <div className="space-y-4 text-muted-foreground">
-                        {course.description.split("\n\n").map((paragraph, index) => (
-                          <p key={index}>{paragraph}</p>
-                        ))}
+                        {course.description
+                          .split("\n\n")
+                          .map((paragraph, index) => (
+                            <p key={index}>{paragraph}</p>
+                          ))}
                       </div>
                     </div>
 
                     <div>
-                      <h3 className="mb-4 text-xl font-bold">What You'll Learn</h3>
+                      <h3 className="mb-4 text-xl font-bold">
+                        What You'll Learn
+                      </h3>
                       <ul className="grid gap-3 sm:grid-cols-2">
-                        {course.whatYouWillLearn.map((item, index) => (
-                          <li key={index} className="flex items-start gap-2">
+                        {course.learningObjectives.map((item, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
                             <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-primary" />
                             <span>{item}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
-
-                    <div>
-                      <h3 className="mb-4 text-xl font-bold">Requirements</h3>
-                      <ul className="list-inside list-disc space-y-2 text-muted-foreground">
-                        {course.requirements.map((item, index) => (
-                          <li key={index}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
                   </div>
                 </TabsContent>
 
-                {/* Curriculum Tab */}
+                {/* ── Curriculum Tab ── */}
                 <TabsContent value="curriculum" className="mt-6">
                   <div>
                     <div className="mb-6 flex items-center justify-between">
@@ -299,211 +360,134 @@ export default function CourseDetailPage() {
                     </div>
 
                     <Accordion type="single" collapsible className="w-full">
-                      {course.curriculum.map((section) => (
-                        <AccordionItem key={section.id} value={`section-${section.id}`}>
-                          <AccordionTrigger className="hover:bg-muted/50 px-4 py-3 text-left">
-                            <div>
-                              <h3 className="font-medium">{section.title}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                {section.lectures.length} lectures •
-                                {section.lectures
-                                  .reduce((total, lecture) => {
-                                    const [min, sec] = lecture.duration.split(":").map(Number)
-                                    return total + min + sec / 60
-                                  }, 0)
-                                  .toFixed(0)}{" "}
-                                min
-                              </p>
-                            </div>
-                          </AccordionTrigger>
-                          <AccordionContent className="px-0">
-                            <ul className="divide-y">
-                              {section.lectures.map((lecture) => (
-                                <li
-                                  key={lecture.id}
-                                  className="flex items-center justify-between px-4 py-3 hover:bg-muted/30"
-                                >
-                                  <div className="flex items-start gap-3">
-                                    <Play className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                                    <div>
-                                      <p className="font-medium">{lecture.title}</p>
-                                      <p className="text-sm text-muted-foreground">{lecture.duration}</p>
+                      {course.curriculum.map((section) => {
+                        // Compute section’s total minutes
+                        const sectionSeconds = section.lectures.reduce(
+                          (secSum, lecture) =>
+                            secSum + parseDurationToSeconds(lecture.duration || "0:00"),
+                          0
+                        )
+                        const sectionLengthMin = Math.round(sectionSeconds / 60)
+
+                        return (
+                          <AccordionItem
+                            key={section.id}
+                            value={`section-${section.id}`}
+                          >
+                            <AccordionTrigger className="hover:bg-muted/50 px-4 py-3 text-left">
+                              <div>
+                                <h3 className="font-medium">{section.title}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                  {section.lectures.length} lectures • {sectionLengthMin} min
+                                </p>
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="px-0">
+                              <ul className="divide-y">
+                                {section.lectures.map((lecture) => (
+                                  <li
+                                    key={lecture.id}
+                                    className="flex items-center justify-between px-4 py-3 hover:bg-muted/30"
+                                  >
+                                    <div className="flex items-start gap-3">
+                                      <Play className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                                      <div>
+                                        <p className="font-medium">{lecture.title}</p>
+                                        <p className="text-sm text-muted-foreground">
+                                          {lecture.duration}
+                                        </p>
+                                      </div>
                                     </div>
-                                  </div>
-                                  {lecture.isPreview && (
-                                    <Button variant="ghost" size="sm">
-                                      Preview
-                                    </Button>
-                                  )}
-                                </li>
-                              ))}
-                            </ul>
-                          </AccordionContent>
-                        </AccordionItem>
-                      ))}
+                                    {lecture.isPreview && lecture.videoUrl && (
+                                      <Button variant="ghost" size="sm">
+                                        <a
+                                          href={lecture.videoUrl}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                        >
+                                          Preview
+                                        </a>
+                                      </Button>
+                                    )}
+                                  </li>
+                                ))}
+                              </ul>
+                            </AccordionContent>
+                          </AccordionItem>
+                        )
+                      })}
                     </Accordion>
                   </div>
                 </TabsContent>
 
-                {/* Instructor Tab */}
+                {/* ── Instructor Tab ── */}
                 <TabsContent value="instructor" className="mt-6">
                   <div className="space-y-6">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                       <div className="relative h-24 w-24 overflow-hidden rounded-full">
-                        <Image
-                          src="/placeholder.svg?height=96&width=96"
-                          alt={course.instructor}
-                          fill
-                          className="object-cover"
+                        <img
+                          src={
+                            course.instructorAvatar ||
+                            "/placeholder.svg?height=96&width=96"
+                          }
+                          alt={course.instructorName}
+                          className="object-cover h-full w-full"
                         />
                       </div>
                       <div>
-                        <h2 className="text-2xl font-bold">{course.instructor}</h2>
-                        <p className="text-muted-foreground">Web Development Instructor</p>
+                        <h2 className="text-2xl font-bold">
+                          {course.instructorName}
+                        </h2>
+                        <p className="text-muted-foreground">
+                          {course.instructorBio || "Instructor"}
+                        </p>
                         <div className="mt-2 flex items-center gap-4">
                           <div className="flex items-center gap-1">
                             <Star className="h-4 w-4 fill-primary text-primary" />
-                            <span>4.8 Instructor Rating</span>
+                            <span>
+                              {course.instructorRating ?? 0} Instructor Rating
+                            </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Users className="h-4 w-4 text-muted-foreground" />
-                            <span>24,500+ Students</span>
+                            <span>{course.totalStudents ?? 0}+ Students</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <BookOpen className="h-4 w-4 text-muted-foreground" />
-                            <span>8 Courses</span>
+                            <span>{course.totalCourses ?? 0} Courses</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <h3 className="mb-2 text-xl font-bold">About the Instructor</h3>
+                      <h3 className="mb-2 text-xl font-bold">
+                        About the Instructor
+                      </h3>
                       <div className="space-y-4 text-muted-foreground">
                         <p>
-                          Sarah Johnson is a full-stack web developer with over 10 years of experience in the industry.
-                          She has worked with companies like Google, Facebook, and Amazon, and now focuses on teaching
-                          the next generation of web developers.
-                        </p>
-                        <p>
-                          Sarah specializes in modern JavaScript frameworks, responsive design, and building scalable
-                          web applications. Her teaching approach focuses on practical, real-world examples that help
-                          students build job-ready skills.
-                        </p>
-                        <p>
-                          When not teaching, Sarah contributes to open-source projects and speaks at web development
-                          conferences around the world.
+                          {course.instructorBioLong ||
+                            "This instructor is passionate about teaching and has years of experience."}
                         </p>
                       </div>
-                    </div>
-                  </div>
-                </TabsContent>
-
-                {/* Reviews Tab */}
-                <TabsContent value="reviews" className="mt-6">
-                  <div className="space-y-8">
-                    <div className="flex flex-col gap-6 md:flex-row">
-                      <div className="md:w-1/3">
-                        <div className="flex flex-col items-center justify-center rounded-lg border p-6 text-center">
-                          <h3 className="text-5xl font-bold">{course.rating}</h3>
-                          <div className="my-2 flex">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <Star
-                                key={star}
-                                className={`h-5 w-5 ${star <= Math.round(course.rating) ? "fill-primary text-primary" : "text-muted-foreground"}`}
-                              />
-                            ))}
-                          </div>
-                          <p className="text-muted-foreground">Course Rating</p>
-                          <p className="mt-2 text-sm text-muted-foreground">
-                            {course.students.toLocaleString()} students
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex-1 space-y-4">
-                        {[5, 4, 3, 2, 1].map((rating) => {
-                          // Mock percentages
-                          const percentages = {
-                            5: 78,
-                            4: 15,
-                            3: 5,
-                            2: 1,
-                            1: 1,
-                          }
-                          return (
-                            <div key={rating} className="flex items-center gap-4">
-                              <div className="flex items-center gap-1 w-20">
-                                <Star className="h-4 w-4 fill-primary text-primary" />
-                                <span>{rating}</span>
-                              </div>
-                              <div className="h-2 flex-1 rounded-full bg-muted">
-                                <div
-                                  className="h-2 rounded-full bg-primary"
-                                  style={{ width: `${percentages[rating]}%` }}
-                                />
-                              </div>
-                              <div className="w-12 text-right text-sm text-muted-foreground">
-                                {percentages[rating]}%
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    <Separator />
-
-                    {/* Sample reviews */}
-                    <div className="space-y-6">
-                      {[1, 2, 3].map((i) => (
-                        <div key={i} className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <div className="relative h-10 w-10 overflow-hidden rounded-full">
-                              <img
-                                src={`/placeholder.svg?height=40&width=40&text=${i}`}
-                                alt={`Student ${i}`}
-                                className="object-cover h-full w-full"
-                              />
-                            </div>
-                            <div>
-                              <h4 className="font-medium">Student Name {i}</h4>
-                              <div className="flex items-center gap-2">
-                                <div className="flex">
-                                  {[1, 2, 3, 4, 5].map((star) => (
-                                    <Star
-                                      key={star}
-                                      className={`h-3 w-3 ${star <= 5 ? "fill-primary text-primary" : "text-muted-foreground"}`}
-                                    />
-                                  ))}
-                                </div>
-                                <span className="text-xs text-muted-foreground">3 months ago</span>
-                              </div>
-                            </div>
-                          </div>
-                          <p className="text-muted-foreground">
-                            This course is amazing! I've learned so much about web development and feel confident in my
-                            skills now. The instructor explains everything clearly and the projects are really helpful
-                            for applying what you learn.
-                          </p>
-                        </div>
-                      ))}
-
-                      <Button variant="outline" className="w-full">
-                        Load More Reviews
-                      </Button>
                     </div>
                   </div>
                 </TabsContent>
               </Tabs>
             </div>
 
-            {/* Course Sidebar */}
+            {/* ── Course Sidebar ── */}
             <div>
               <Card className="sticky top-8">
                 <CardHeader>
-                  <CardTitle className="text-2xl">{course.price}</CardTitle>
-                  <CardDescription>Lifetime access to all course content</CardDescription>
+                  <CardTitle className="text-2xl">
+                    {typeof course.price === "number"
+                      ? `$${course.price.toFixed(2)}`
+                      : course.price}
+                  </CardTitle>
+                  <CardDescription>
+                    Lifetime access to all course content
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   {isPurchased ? (
@@ -519,7 +503,9 @@ export default function CourseDetailPage() {
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-muted-foreground" />
-                      <span>{totalHours} hours of video content</span>
+                      <span>
+                        {totalHours}h {totalMinutes}m video content
+                      </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <BookOpen className="h-5 w-5 text-muted-foreground" />
@@ -538,59 +524,88 @@ export default function CourseDetailPage() {
                       <span>30-day money-back guarantee</span>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-                    <Share2 className="h-4 w-4" />
-                    <span>Share this course</span>
-                  </div>
                 </CardContent>
               </Card>
             </div>
           </div>
         </section>
 
-        {/* Related Courses */}
+        {/* ── Related Courses ── */}
         <section className="bg-muted/50 py-12">
           <div className="container">
             <h2 className="mb-8 text-2xl font-bold">Related Courses</h2>
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {[1, 2, 3, 4].map((i) => (
-                <Card key={i} className="overflow-hidden">
-                  <div className="aspect-video w-full overflow-hidden">
-                    <img
-                      src={`/placeholder.svg?height=200&width=350&text=${i}`}
-                      alt={`Related Course ${i}`}
-                      width={350}
-                      height={200}
-                      className="h-full w-full object-cover transition-transform hover:scale-105"
-                    />
-                  </div>
-                  <CardHeader className="p-4">
-                    <CardTitle className="line-clamp-2 text-lg">Related Web Development Course {i}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-4 pt-0">
-                    <p className="text-sm text-muted-foreground">By Course Instructor</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="flex">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <Star key={star} className="h-4 w-4 fill-primary text-primary" />
-                        ))}
+              {relatedCourses.length > 0 ? (
+                relatedCourses.map((rel) => {
+                  const relEnrolled = Array.isArray(rel.students)
+                    ? rel.students.length
+                    : 0
+                  const relRating = rel.rating ?? 0
+                  const relPrice =
+                    typeof rel.price === "number"
+                      ? `$${rel.price.toFixed(2)}`
+                      : rel.price || "Free"
+                  const relImage = rel.image?.url || "/placeholder.svg"
+
+                  return (
+                    <Card key={rel._id} className="overflow-hidden">
+                      <div className="aspect-video w-full overflow-hidden">
+                        <img
+                          src={relImage}
+                          alt={rel.title}
+                          width={350}
+                          height={200}
+                          className="h-full w-full object-cover transition-transform hover:scale-105"
+                        />
                       </div>
-                      <span className="text-xs text-muted-foreground">(1,234 students)</span>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className="font-bold">$79.99</span>
-                      <Button size="sm" variant="outline" asChild>
-                        <Link to={`/courses/${i}`}>View Course</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <CardHeader className="p-4">
+                        <CardTitle className="line-clamp-2 text-lg">
+                          {rel.title}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 pt-0">
+                        <p className="text-sm text-muted-foreground">
+                          By {rel.instructorName}
+                        </p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="flex items-center">
+                            <Star className="h-4 w-4 fill-primary text-primary" />
+                            <span className="ml-1 text-sm font-medium">
+                              {relRating}
+                            </span>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            ({relEnrolled.toLocaleString()} students)
+                          </span>
+                        </div>
+                        <div className="mt-4 flex items-center justify-between">
+                          <span className="font-bold">{relPrice}</span>
+                          <Button size="sm" variant="outline" asChild>
+                            <Link to={`/courses/${rel._id}`}>View Course</Link>
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })
+              ) : (
+                <p className="text-muted-foreground">No related courses found.</p>
+              )}
             </div>
           </div>
         </section>
       </main>
     </>
   )
+}
+
+// ── Helper: parse “MM:SS” or “H:MM:SS” into total seconds
+function parseDurationToSeconds(durationStr) {
+  const parts = durationStr.split(":").map(Number)
+  if (parts.length === 2) {
+    return parts[0] * 60 + parts[1]
+  } else if (parts.length === 3) {
+    return parts[0] * 3600 + parts[1] * 60 + parts[2]
+  }
+  return 0
 }

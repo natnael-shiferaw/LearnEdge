@@ -47,6 +47,7 @@ const CourseSchema = new Schema({
       studentId: { type: Schema.Types.ObjectId, ref: "User" },
       studentName: String,
       studentEmail: String,
+      paidAmount: String,
     },
   ],
 
