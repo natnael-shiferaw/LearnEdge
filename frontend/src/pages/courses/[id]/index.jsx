@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useContext } from "react"
-import { Link, useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate } from "react-router-dom"
 import {
   Award,
   BookOpen,
@@ -51,6 +51,7 @@ export default function CourseDetailPage() {
   const [allCourses, setAllCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [instructorCoursesCount, setInstructorCoursesCount] = useState(0);
 
   // Purchase/enroll state (for this main course)
   const [isPurchased, setIsPurchased] = useState(false)
@@ -75,6 +76,18 @@ export default function CourseDetailPage() {
         } else {
           setError("Failed to load course details")
         }
+        // Normalize into a plain array of courses:
+        const list = Array.isArray(res.data)
+          ? res.data
+          : Array.isArray(res)
+          ? res
+          : []
+        // Count how many belong to this instructor:
+        const count = list.filter(
+          (c) => String(c.instructorId) === String(course.instructorId)
+        ).length
+        console.log("Instructor Courses Count:",count)
+      setInstructorCoursesCount(count);
       })
       .catch((err) => {
         console.error("Fetch error:", err)
@@ -99,7 +112,7 @@ export default function CourseDetailPage() {
     return () => {
       isMounted = false
     }
-  }, [courseId])
+  }, [courseId, course?.instructorId])
 
   //once we have both `course` and `userId`, check purchase ─
   useEffect(() => {
@@ -262,7 +275,7 @@ export default function CourseDetailPage() {
                         />
                       ))}
                     </div>
-                    <span className="ml-2 font-medium">{course.rating}</span>
+                    <span className="ml-2 font-medium">{course.rating || 4.8}</span>
                     <span className="ml-1 text-muted-foreground">
                       ({(course.students || []).length.toLocaleString()} students)
                     </span>
@@ -495,16 +508,16 @@ export default function CourseDetailPage() {
                           <div className="flex items-center gap-1">
                             <Star className="h-4 w-4 fill-primary text-primary" />
                             <span>
-                              {course.instructorRating ?? 0} Instructor Rating
+                              {course.instructorRating ?? 4.8} Instructor Rating
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <Users className="h-4 w-4 text-muted-foreground" />
-                            <span>{course.totalStudents ?? 0}+ Students</span>
+                            <span>{course.students.length ?? 0}+ Students</span>
                           </div>
                           <div className="flex items-center gap-1">
                             <BookOpen className="h-4 w-4 text-muted-foreground" />
-                            <span>{course.totalCourses ?? 0} Courses</span>
+                            <span>{instructorCoursesCount} Courses</span>
                           </div>
                         </div>
                       </div>

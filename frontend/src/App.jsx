@@ -21,6 +21,7 @@ import MyCoursesPage from "./pages/student/my-courses"
 import CourseProgressPage from "./pages/student/my-courses/course-progress/[id]"
 import PaymentReturnPage from "./pages/student/payment-return"
 import { ToastViewport } from "@/components/ui/toast"
+import CategoryPage from "./pages/categories/[category]"
 
 function App() {
   const { auth } = useContext(AuthContext)
@@ -35,6 +36,7 @@ function App() {
         <Route path="/courses"  element={<CoursesPage />} />
         <Route path="/courses/:id" element={<CourseDetailPage />} />
         <Route path='/categories' element={<CategoriesPage />} />
+        <Route path='/categories/:category' element={<CategoryPage />} />
 
         {/** Authentication page */}
         <Route path="/auth" element={<ProtectedRoute

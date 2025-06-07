@@ -1,23 +1,30 @@
-import { GraduationCap } from 'lucide-react'
-import { useState } from "react"
+// src/components/Header.jsx
+import { GraduationCap, Menu, Sun, Moon } from "lucide-react"
+import { useContext } from "react"
 import { Link, useLocation } from "react-router-dom"
-import { Menu, Search, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { AuthContext } from "@/context/auth-context"
+import { useTheme } from "@/components/theme-provider"
 
 export default function Header() {
   const { pathname } = useLocation()
-  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const { auth } = useContext(AuthContext)
+  const { theme, setTheme } = useTheme()
 
   const routes = [
-    { href: "/",          label: "Home",       active: pathname === "/" },
-    { href: "/courses",   label: "Courses",    active: pathname === "/courses" },
-    { href: "/categories",label: "Categories", active: pathname === "/categories" },
-    { href: "/about",     label: "About",      active: pathname === "/about" },
+    { href: "/",           label: "Home",       active: pathname === "/" },
+    { href: "/courses",    label: "Courses",    active: pathname === "/courses" },
+    { href: "/categories", label: "Categories", active: pathname === "/categories" },
   ]
+
+  // toggle between 'light' and 'dark'
+  const toggle = () => {
+    if (theme === "dark") setTheme("light")
+    else setTheme("dark")
+  }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background">
@@ -68,24 +75,28 @@ export default function Header() {
         </nav>
 
         <div className="flex items-center ml-auto gap-2">
-          {isSearchOpen ? (
-            <div className="relative flex items-center">
-              <Input type="search" placeholder="Search courses..." className="w-[200px] lg:w-[300px]" />
-              <Button variant="ghost" size="icon" className="absolute right-0" onClick={() => setIsSearchOpen(false)}>
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close search</span>
-              </Button>
-            </div>
-          ) : (
-            <Button variant="ghost" size="icon" onClick={() => setIsSearchOpen(true)}>
-              <Search className="h-5 w-5" />
-              <span className="sr-only">Search</span>
-            </Button>
-          )}
+          {/* Light/Dark Toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggle}
+            className="text-muted-foreground hover:text-primary"
+          >
+            {theme === "dark" ? (
+              <Sun className="h-8 w-8" />
+            ) : (
+              <Moon className="h-8 w-8" />
+            )}
+            <span className="sr-only">
+              Switch to {theme === "dark" ? "light" : "dark"} mode
+            </span>
+          </Button>
 
           <div className="hidden sm:flex gap-2">
             <Link to="/auth/">
-              <Button size="sm">Log in</Button>
+              <Button size="sm">
+                {auth?.user ? "Dashboard" : "Log in"}
+              </Button>
             </Link>
           </div>
         </div>
@@ -93,4 +104,3 @@ export default function Header() {
     </header>
   )
 }
-
