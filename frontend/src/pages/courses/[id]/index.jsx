@@ -35,25 +35,30 @@ import { toast } from "@/hooks/use-toast"
 import {
   fetchStudentViewCourseDetailsService,
   fetchStudentViewCourseListService,
+  checkCoursePurchaseInfoService,
 } from "@/services/studentService"
 import { AuthContext } from "@/context/auth-context"
 import { createPaymentService } from "@/services/paymentService"
 
 export default function CourseDetailPage() {
   const navigate = useNavigate()
-  const {auth} = useContext(AuthContext)
+  const { auth } = useContext(AuthContext)
+  const userId = auth?.user?._id
   const { id: courseId } = useParams()
 
-  // State for single-course details, all courses, loading, and error
+  // State for single‐course details, all courses, loading, and error
   const [course, setCourse] = useState(null)
   const [allCourses, setAllCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Purchase/enroll state
+  // Purchase/enroll state (for this main course)
   const [isPurchased, setIsPurchased] = useState(false)
-  const [approvalUrl, setApprovalUrl] = useState('')
-  // const [paymentId, setPaymentId] = useState(null)
+  const [approvalUrl, setApprovalUrl] = useState("")
+
+  // Track “checking” state for related courses
+  const [checkingRelatedMap, setCheckingRelatedMap] = useState({})
+  console.log(approvalUrl)
 
   // Fetch single course details AND all courses on mount
   useEffect(() => {
@@ -63,7 +68,7 @@ export default function CourseDetailPage() {
 
     // Fetch current course
     fetchStudentViewCourseDetailsService(courseId)
-      .then((res) => {
+      .then(async (res) => {
         if (!isMounted) return
         if (res.success) {
           setCourse(res.data)
@@ -96,13 +101,27 @@ export default function CourseDetailPage() {
     }
   }, [courseId])
 
+  //once we have both `course` and `userId`, check purchase ─
+  useEffect(() => {
+    if (!course?._id || !userId) return
+
+    checkCoursePurchaseInfoService(course._id, userId)
+      .then((res) => {
+        if (res.success) {
+          setIsPurchased(!!res.data)
+        }
+      })
+      .catch(console.error)
+  }, [course?._id, userId])
+
   // Compute "Related Courses" (same category, exclude current)
   const relatedCourses = useMemo(() => {
     if (!course) return []
     return allCourses
       .filter(
         (c) =>
-          c.category === course.category && String(c._id) !== String(course._id)
+          c.category === course.category &&
+          String(c._id) !== String(course._id)
       )
       .slice(0, 4)
   }, [allCourses, course])
@@ -147,45 +166,67 @@ export default function CourseDetailPage() {
     .find((lec) => lec.isPreview && lec.videoUrl)
   const previewUrl = previewLecture ? previewLecture.videoUrl : null
 
-  // Button handlers
+  // Button handlers for main course
   const handlePurchase = async () => {
     const PaymentPayload = {
-      userId : auth?.user?._id,
-      userName : auth?.user?.username,
-      userEmail : auth?.user?.email,
-      orderStatus : 'pending',
-      paymentMethod : 'paypal',
-      paymentStatus : 'initiated',
-      orderDate : new Date(),
-      paymentId : '',
-      payerId : '',
-      instructorId : course?.instructorId,
-      instructorName : course?.instructorName,
-      courseImage : course?.image,
-      courseTitle : course?.title,
-      courseId : course?._id,
-      coursePricing : course?.price,
+      userId: auth?.user?._id,
+      userName: auth?.user?.username,
+      userEmail: auth?.user?.email,
+      orderStatus: "pending",
+      paymentMethod: "paypal",
+      paymentStatus: "initiated",
+      orderDate: new Date(),
+      paymentId: "",
+      payerId: "",
+      instructorId: course?.instructorId,
+      instructorName: course?.instructorName,
+      courseImage: course?.image,
+      courseTitle: course?.title,
+      courseId: course?._id,
+      coursePricing: course?.price,
     }
-    console.log(PaymentPayload);
-    const response = await createPaymentService(PaymentPayload);
+    const response = await createPaymentService(PaymentPayload)
     if (response.success) {
-      sessionStorage.setItem('currentOrderId', JSON.stringify(response?.data?.orderId))
-      setApprovalUrl(response?.data?.approvalUrl);
-      // Only redirect to PayPal once:
+      sessionStorage.setItem(
+        "currentOrderId",
+        JSON.stringify(response?.data?.orderId)
+      )
+      setApprovalUrl(response?.data?.approvalUrl)
       window.location.href = response.data.approveUrl
     } else {
-      toast({ title: "Payment error", description: response.message, variant: "destructive" })
+      toast({
+        title: "Payment error",
+        description: response.message,
+        variant: "destructive",
+      })
+    }
+  }
+  const handleStart = () => {
+    navigate(`/student/my-courses/course-progress/${courseId}`)
+  }
+
+  // Handler for “Related Courses” click
+  const handleRelatedClick = async (relId) => {
+    if (!userId) {
+      navigate(`/courses/${relId}`)
+      return
     }
 
-    setIsPurchased(true);
-  }
-
-  if(approvalUrl !== '') {
-    console.log(approvalUrl)
-  }
-
-  const handleEnroll = () => {
-    navigate(`/student/my-courses/course-progress/${courseId}`)
+    // Mark as “checking” for this related course
+    setCheckingRelatedMap((prev) => ({ ...prev, [relId]: true }))
+    try {
+      const res = await checkCoursePurchaseInfoService(relId, userId)
+      if (res.success && res.data === true) {
+        navigate(`/student/my-courses/course-progress/${relId}`)
+      } else {
+        navigate(`/courses/${relId}`)
+      }
+    } catch (e) {
+      console.error("Related purchase‐check error:", e)
+      navigate(`/courses/${relId}`)
+    } finally {
+      setCheckingRelatedMap((prev) => ({ ...prev, [relId]: false }))
+    }
   }
 
   return (
@@ -262,15 +303,17 @@ export default function CourseDetailPage() {
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row">
-                  {isPurchased ? (
-                    <Button size="lg" onClick={handleEnroll}>
-                      <Play className="mr-2 h-4 w-4" /> Start Learning
-                    </Button>
-                  ) : (
-                    <Button size="lg" onClick={handlePurchase}>
-                      <ShoppingCart className="mr-2 h-4 w-4" /> Purchase Course
-                    </Button>
-                  )}
+                <Button size="lg" onClick={isPurchased ? handleStart : handlePurchase}>
+        {isPurchased ? (
+          <>
+            <Play className="mr-2 h-4 w-4" /> Start Learning
+          </>
+        ) : (
+          <>
+            <ShoppingCart className="mr-2 h-4 w-4" /> Purchase Course
+          </>
+        )}
+      </Button>
                 </div>
               </div>
 
@@ -352,20 +395,24 @@ export default function CourseDetailPage() {
                       <div>
                         <h2 className="text-2xl font-bold">Course Content</h2>
                         <p className="text-muted-foreground">
-                          {totalLectures} lectures • {totalHours}h {totalMinutes}m total length
+                          {totalLectures} lectures • {totalHours}h{" "}
+                          {totalMinutes}m total length
                         </p>
                       </div>
                     </div>
 
                     <Accordion type="single" collapsible className="w-full">
                       {course.curriculum.map((section) => {
-                        // Compute section’s total minutes
+                        // Compute this section’s total minutes
                         const sectionSeconds = section.lectures.reduce(
                           (secSum, lecture) =>
-                            secSum + parseDurationToSeconds(lecture.duration || "0:00"),
+                            secSum +
+                            parseDurationToSeconds(lecture.duration || "0:00"),
                           0
                         )
-                        const sectionLengthMin = Math.round(sectionSeconds / 60)
+                        const sectionLengthMin = Math.round(
+                          sectionSeconds / 60
+                        )
 
                         return (
                           <AccordionItem
@@ -374,9 +421,12 @@ export default function CourseDetailPage() {
                           >
                             <AccordionTrigger className="hover:bg-muted/50 px-4 py-3 text-left">
                               <div>
-                                <h3 className="font-medium">{section.title}</h3>
+                                <h3 className="font-medium">
+                                  {section.title}
+                                </h3>
                                 <p className="text-sm text-muted-foreground">
-                                  {section.lectures.length} lectures • {sectionLengthMin} min
+                                  {section.lectures.length} lectures •{" "}
+                                  {sectionLengthMin} min
                                 </p>
                               </div>
                             </AccordionTrigger>
@@ -390,7 +440,9 @@ export default function CourseDetailPage() {
                                     <div className="flex items-start gap-3">
                                       <Play className="mt-0.5 h-4 w-4 flex-shrink-0 text-muted-foreground" />
                                       <div>
-                                        <p className="font-medium">{lecture.title}</p>
+                                        <p className="font-medium">
+                                          {lecture.title}
+                                        </p>
                                         <p className="text-sm text-muted-foreground">
                                           {lecture.duration}
                                         </p>
@@ -488,15 +540,17 @@ export default function CourseDetailPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  {isPurchased ? (
-                    <Button className="w-full" size="lg" onClick={handleEnroll}>
-                      <Play className="mr-2 h-4 w-4" /> Start Learning
-                    </Button>
-                  ) : (
-                    <Button className="w-full" size="lg" onClick={handlePurchase}>
-                      <ShoppingCart className="mr-2 h-4 w-4" /> Purchase Course
-                    </Button>
-                  )}
+                <Button size="lg" onClick={isPurchased ? handleStart : handlePurchase}>
+        {isPurchased ? (
+          <>
+            <Play className="mr-2 h-4 w-4" /> Start Learning
+          </>
+        ) : (
+          <>
+            <ShoppingCart className="mr-2 h-4 w-4" /> Purchase Course
+          </>
+        )}
+      </Button>
 
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
@@ -578,8 +632,15 @@ export default function CourseDetailPage() {
                         </div>
                         <div className="mt-4 flex items-center justify-between">
                           <span className="font-bold">{relPrice}</span>
-                          <Button size="sm" variant="outline" asChild>
-                            <Link to={`/courses/${rel._id}`}>View Course</Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleRelatedClick(rel._id)}
+                            disabled={!!checkingRelatedMap[rel._id]}
+                          >
+                            {checkingRelatedMap[rel._id]
+                              ? "Checking…"
+                              : "View Course"}
                           </Button>
                         </div>
                       </CardContent>
