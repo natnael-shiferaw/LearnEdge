@@ -9,6 +9,7 @@ const instructorCourseRoutes = require('./routes/instructor-routes/course-routes
 const studentViewCourseRoutes = require('./routes/student-routes/course-routes')
 const studentViewOrderRoutes = require("./routes/student-routes/order-routes");
 const studentCoursesRoutes = require("./routes/student-routes/student-courses-routes");
+const studentCourseProgressRoutes = require("./routes/student-routes/course-progress-routes");
 
 const app = express()
 const PORT = process.env.PORT || 5000
@@ -36,6 +37,7 @@ app.use('/api/instructor/course', instructorCourseRoutes);
 app.use('/api/student/course', studentViewCourseRoutes);
 app.use("/api/student/order", studentViewOrderRoutes);
 app.use("/api/student/courses-bought", studentCoursesRoutes);
+app.use("/api/student/course-progress", studentCourseProgressRoutes);
 
 app.listen(PORT, () => {
     console.log(`server is running on port ${PORT}`)
